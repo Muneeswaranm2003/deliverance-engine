@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Mail } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { user, loading } = useAuth();
 
   const navLinks = [
     { href: "#features", label: "Features" },
@@ -45,12 +47,22 @@ const Navbar = () => {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-3">
-            <Button variant="ghost" size="sm">
-              Sign In
-            </Button>
-            <Button variant="default" size="sm">
-              Get Started
-            </Button>
+            {!loading && (
+              user ? (
+                <Button variant="default" size="sm" asChild>
+                  <a href="/dashboard">Dashboard</a>
+                </Button>
+              ) : (
+                <>
+                  <Button variant="ghost" size="sm" asChild>
+                    <a href="/auth">Sign In</a>
+                  </Button>
+                  <Button variant="default" size="sm" asChild>
+                    <a href="/auth">Get Started</a>
+                  </Button>
+                </>
+              )
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -82,12 +94,20 @@ const Navbar = () => {
                 </a>
               ))}
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
-                <Button variant="ghost" size="sm" className="w-full">
-                  Sign In
-                </Button>
-                <Button variant="default" size="sm" className="w-full">
-                  Get Started
-                </Button>
+                {user ? (
+                  <Button variant="default" size="sm" className="w-full" asChild>
+                    <a href="/dashboard">Dashboard</a>
+                  </Button>
+                ) : (
+                  <>
+                    <Button variant="ghost" size="sm" className="w-full" asChild>
+                      <a href="/auth">Sign In</a>
+                    </Button>
+                    <Button variant="default" size="sm" className="w-full" asChild>
+                      <a href="/auth">Get Started</a>
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>
