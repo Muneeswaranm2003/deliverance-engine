@@ -30,15 +30,15 @@ const Dashboard = () => {
             <LayoutDashboard className="w-4 h-4" />
             Dashboard
           </a>
-          <a href="/dashboard/campaigns" className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
+          <a href="/campaigns" className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
             <Send className="w-4 h-4" />
             Campaigns
           </a>
-          <a href="/dashboard/contacts" className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
+          <a href="/contacts" className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
             <Users className="w-4 h-4" />
             Contacts
           </a>
-          <a href="/dashboard/settings" className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
+          <a href="/settings" className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
             <Settings className="w-4 h-4" />
             Settings
           </a>
@@ -59,7 +59,7 @@ const Dashboard = () => {
             <h1 className="font-display text-2xl font-bold">Dashboard</h1>
             <p className="text-muted-foreground text-sm">Welcome back, {user?.email}</p>
           </div>
-          <Button variant="hero" onClick={() => navigate("/dashboard/campaigns/new")}>Create Campaign</Button>
+          <Button variant="hero" onClick={() => navigate("/campaigns/new")}>Create Campaign</Button>
         </header>
 
         <div className="p-6">
@@ -96,7 +96,7 @@ const Dashboard = () => {
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
               Create your first email campaign to start reaching your audience with high deliverability.
             </p>
-            <Button variant="hero" onClick={() => navigate("/dashboard/campaigns/new")}>Create Your First Campaign</Button>
+            <Button variant="hero" onClick={() => navigate("/campaigns/new")}>Create Your First Campaign</Button>
           </motion.div>
         </div>
       </main>

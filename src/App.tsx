@@ -32,7 +32,7 @@ const App = () => (
               }
             />
             <Route
-              path="/dashboard/campaigns/new"
+              path="/campaigns/new"
               element={
                 <ProtectedRoute>
                   <CampaignCreate />
