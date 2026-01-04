@@ -143,15 +143,15 @@ const CampaignCreate = () => {
             <LayoutDashboard className="w-4 h-4" />
             Dashboard
           </a>
-          <a href="/dashboard/campaigns" className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-secondary text-foreground">
+          <a href="/campaigns" className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-secondary text-foreground">
             <Send className="w-4 h-4" />
             Campaigns
           </a>
-          <a href="/dashboard/contacts" className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
+          <a href="/contacts" className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
             <Users className="w-4 h-4" />
             Contacts
           </a>
-          <a href="/dashboard/settings" className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
+          <a href="/settings" className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
             <Settings className="w-4 h-4" />
             Settings
           </a>
