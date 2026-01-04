@@ -1,9 +1,11 @@
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { LayoutDashboard, Send, Users, Settings, LogOut, BarChart3 } from "lucide-react";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { user, signOut } = useAuth();
 
   const stats = [
@@ -57,7 +59,7 @@ const Dashboard = () => {
             <h1 className="font-display text-2xl font-bold">Dashboard</h1>
             <p className="text-muted-foreground text-sm">Welcome back, {user?.email}</p>
           </div>
-          <Button variant="hero">Create Campaign</Button>
+          <Button variant="hero" onClick={() => navigate("/dashboard/campaigns/new")}>Create Campaign</Button>
         </header>
 
         <div className="p-6">
@@ -94,7 +96,7 @@ const Dashboard = () => {
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
               Create your first email campaign to start reaching your audience with high deliverability.
             </p>
-            <Button variant="hero">Create Your First Campaign</Button>
+            <Button variant="hero" onClick={() => navigate("/dashboard/campaigns/new")}>Create Your First Campaign</Button>
           </motion.div>
         </div>
       </main>
