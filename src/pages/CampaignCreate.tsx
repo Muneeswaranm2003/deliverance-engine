@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import EmailTemplateEditor from "@/components/campaigns/EmailTemplateEditor";
 import RecipientSelector from "@/components/campaigns/RecipientSelector";
 import SchedulingOptions from "@/components/campaigns/SchedulingOptions";
@@ -19,7 +20,8 @@ import {
   Send,
   LayoutDashboard,
   Settings,
-  LogOut
+  LogOut,
+  Loader2
 } from "lucide-react";
 
 interface Recipient {
@@ -38,8 +40,9 @@ const steps = [
 
 const CampaignCreate = () => {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Campaign details
   const [campaignName, setCampaignName] = useState("");
@@ -114,17 +117,70 @@ const CampaignCreate = () => {
     setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
-  const handleSubmit = () => {
-    if (!validateStep(4)) return;
+  const handleSubmit = async () => {
+    if (!validateStep(4) || !user) return;
 
-    // For now, just show success and redirect
-    toast({
-      title: "Campaign created!",
-      description: scheduleType === "now" 
-        ? "Your campaign is being sent." 
-        : "Your campaign has been scheduled.",
-    });
-    navigate("/dashboard");
+    setIsSubmitting(true);
+    try {
+      // Create the campaign
+      const { data: campaign, error: campaignError } = await supabase
+        .from("campaigns")
+        .insert({
+          user_id: user.id,
+          name: campaignName,
+          sender_name: senderName,
+          sender_email: senderEmail,
+          subject,
+          content,
+          status: scheduleType === "now" ? "sending" : "scheduled",
+          schedule_type: scheduleType,
+          scheduled_at: scheduleType === "later" && scheduledDate 
+            ? new Date(`${scheduledDate.toISOString().split('T')[0]}T${scheduledTime}:00`).toISOString()
+            : null,
+          timezone,
+          batch_size: batchSize,
+          batch_delay: batchDelay,
+          total_recipients: recipients.length,
+        })
+        .select()
+        .single();
+
+      if (campaignError) throw campaignError;
+
+      // Add recipients to campaign
+      if (recipients.length > 0) {
+        const recipientInserts = recipients.map((r) => ({
+          campaign_id: campaign.id,
+          email: r.email,
+          first_name: r.firstName || null,
+          last_name: r.lastName || null,
+          company: r.company || null,
+        }));
+
+        const { error: recipientError } = await supabase
+          .from("campaign_recipients")
+          .insert(recipientInserts);
+
+        if (recipientError) throw recipientError;
+      }
+
+      toast({
+        title: "Campaign created!",
+        description: scheduleType === "now" 
+          ? "Your campaign is ready to send." 
+          : "Your campaign has been scheduled.",
+      });
+      navigate("/campaigns");
+    } catch (error: any) {
+      console.error("Error creating campaign:", error);
+      toast({
+        title: "Error creating campaign",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -369,8 +425,12 @@ const CampaignCreate = () => {
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               ) : (
-                <Button variant="hero" onClick={handleSubmit} className="gap-2">
-                  <Send className="w-4 h-4" />
+                <Button variant="hero" onClick={handleSubmit} disabled={isSubmitting} className="gap-2">
+                  {isSubmitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
                   {scheduleType === "now" ? "Send Campaign" : "Schedule Campaign"}
                 </Button>
               )}
