@@ -1,17 +1,36 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Send, Users, Settings, LogOut, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Send, Users, Settings, LogOut, BarChart3, Loader2 } from "lucide-react";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
 
-  const stats = [
-    { label: "Total Campaigns", value: "0", icon: Send },
-    { label: "Total Contacts", value: "0", icon: Users },
-    { label: "Emails Sent", value: "0", icon: BarChart3 },
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ["dashboard-stats"],
+    queryFn: async () => {
+      const [campaignsRes, contactsRes, emailLogsRes] = await Promise.all([
+        supabase.from("campaigns").select("id", { count: "exact", head: true }),
+        supabase.from("contacts").select("id", { count: "exact", head: true }),
+        supabase.from("email_logs").select("id", { count: "exact", head: true }).eq("status", "sent"),
+      ]);
+
+      return {
+        campaigns: campaignsRes.count || 0,
+        contacts: contactsRes.count || 0,
+        emailsSent: emailLogsRes.count || 0,
+      };
+    },
+  });
+
+  const statsDisplay = [
+    { label: "Total Campaigns", value: isLoading ? "—" : stats?.campaigns.toString() || "0", icon: Send },
+    { label: "Total Contacts", value: isLoading ? "—" : stats?.contacts.toString() || "0", icon: Users },
+    { label: "Emails Sent", value: isLoading ? "—" : stats?.emailsSent.toString() || "0", icon: BarChart3 },
   ];
 
   return (
@@ -65,7 +84,7 @@ const Dashboard = () => {
         <div className="p-6">
           {/* Stats */}
           <div className="grid md:grid-cols-3 gap-6 mb-8">
-            {stats.map((stat, index) => (
+            {statsDisplay.map((stat, index) => (
               <motion.div
                 key={stat.label}
                 initial={{ opacity: 0, y: 20 }}
@@ -75,7 +94,11 @@ const Dashboard = () => {
               >
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-muted-foreground text-sm">{stat.label}</span>
-                  <stat.icon className="w-5 h-5 text-primary" />
+                  {isLoading ? (
+                    <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                  ) : (
+                    <stat.icon className="w-5 h-5 text-primary" />
+                  )}
                 </div>
                 <p className="font-display text-3xl font-bold">{stat.value}</p>
               </motion.div>
