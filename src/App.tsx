@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Campaigns from "./pages/Campaigns";
 import CampaignCreate from "./pages/CampaignCreate";
+import CampaignEdit from "./pages/CampaignEdit";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +46,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <CampaignCreate />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/campaigns/:id/edit"
+              element={
+                <ProtectedRoute>
+                  <CampaignEdit />
                 </ProtectedRoute>
               }
             />
