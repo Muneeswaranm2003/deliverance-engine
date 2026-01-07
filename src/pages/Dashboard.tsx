@@ -2,15 +2,30 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Send, Users, Settings, LogOut, BarChart3, Loader2 } from "lucide-react";
+import { format } from "date-fns";
+import {
+  Send,
+  Users,
+  BarChart3,
+  Loader2,
+  ArrowUpRight,
+  Clock,
+  CheckCircle2,
+  Calendar,
+} from "lucide-react";
+import type { Tables } from "@/integrations/supabase/types";
+
+type Campaign = Tables<"campaigns">;
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
 
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
       const [campaignsRes, contactsRes, emailLogsRes] = await Promise.all([
@@ -27,103 +42,165 @@ const Dashboard = () => {
     },
   });
 
+  const { data: recentCampaigns, isLoading: campaignsLoading } = useQuery({
+    queryKey: ["recent-campaigns"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("campaigns")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      return data as Campaign[];
+    },
+  });
+
   const statsDisplay = [
-    { label: "Total Campaigns", value: isLoading ? "—" : stats?.campaigns.toString() || "0", icon: Send },
-    { label: "Total Contacts", value: isLoading ? "—" : stats?.contacts.toString() || "0", icon: Users },
-    { label: "Emails Sent", value: isLoading ? "—" : stats?.emailsSent.toString() || "0", icon: BarChart3 },
+    {
+      label: "Total Campaigns",
+      value: statsLoading ? "—" : stats?.campaigns.toString() || "0",
+      icon: Send,
+      color: "text-primary",
+      bgColor: "bg-primary/10",
+    },
+    {
+      label: "Total Contacts",
+      value: statsLoading ? "—" : stats?.contacts.toString() || "0",
+      icon: Users,
+      color: "text-emerald-400",
+      bgColor: "bg-emerald-400/10",
+    },
+    {
+      label: "Emails Sent",
+      value: statsLoading ? "—" : stats?.emailsSent.toString() || "0",
+      icon: BarChart3,
+      color: "text-violet-400",
+      bgColor: "bg-violet-400/10",
+    },
   ];
 
+  const getStatusIcon = (status: Campaign["status"]) => {
+    switch (status) {
+      case "sent":
+        return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />;
+      case "scheduled":
+        return <Calendar className="w-3.5 h-3.5 text-primary" />;
+      default:
+        return <Clock className="w-3.5 h-3.5 text-muted-foreground" />;
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Sidebar */}
-      <aside className="fixed left-0 top-0 bottom-0 w-64 border-r border-border bg-card p-6 hidden lg:block">
-        <div className="flex items-center gap-2 mb-8">
-          <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-            <Send className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <span className="font-display font-bold">MailForge</span>
-        </div>
-
-        <nav className="space-y-2">
-          <a href="/dashboard" className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-secondary text-foreground">
-            <LayoutDashboard className="w-4 h-4" />
-            Dashboard
-          </a>
-          <a href="/campaigns" className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
-            <Send className="w-4 h-4" />
-            Campaigns
-          </a>
-          <a href="/contacts" className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
-            <Users className="w-4 h-4" />
-            Contacts
-          </a>
-          <a href="/settings" className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
-            <Settings className="w-4 h-4" />
-            Settings
-          </a>
-        </nav>
-
-        <div className="absolute bottom-6 left-6 right-6">
-          <Button variant="ghost" className="w-full justify-start gap-3" onClick={signOut}>
-            <LogOut className="w-4 h-4" />
-            Sign Out
-          </Button>
-        </div>
-      </aside>
-
-      {/* Main content */}
-      <main className="lg:pl-64">
-        <header className="border-b border-border px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-2xl font-bold">Dashboard</h1>
-            <p className="text-muted-foreground text-sm">Welcome back, {user?.email}</p>
-          </div>
-          <Button variant="hero" onClick={() => navigate("/campaigns/new")}>Create Campaign</Button>
-        </header>
-
-        <div className="p-6">
-          {/* Stats */}
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
-            {statsDisplay.map((stat, index) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="glass rounded-xl p-6"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-muted-foreground text-sm">{stat.label}</span>
-                  {isLoading ? (
-                    <Loader2 className="w-5 h-5 text-primary animate-spin" />
-                  ) : (
-                    <stat.icon className="w-5 h-5 text-primary" />
-                  )}
-                </div>
-                <p className="font-display text-3xl font-bold">{stat.value}</p>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Empty state */}
+    <AppLayout
+      title="Dashboard"
+      description={`Welcome back, ${user?.email?.split("@")[0] || "User"}`}
+      action={
+        <Button variant="hero" onClick={() => navigate("/campaigns/new")} className="gap-2">
+          Create Campaign
+          <ArrowUpRight className="w-4 h-4" />
+        </Button>
+      }
+    >
+      {/* Stats */}
+      <div className="grid md:grid-cols-3 gap-6 mb-8">
+        {statsDisplay.map((stat, index) => (
           <motion.div
+            key={stat.label}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="glass rounded-xl p-12 text-center"
+            transition={{ delay: index * 0.1 }}
+            className="glass rounded-xl p-6 hover:border-primary/30 transition-colors"
           >
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-muted-foreground text-sm">{stat.label}</span>
+              {statsLoading ? (
+                <Loader2 className="w-5 h-5 text-primary animate-spin" />
+              ) : (
+                <div className={`w-10 h-10 rounded-lg ${stat.bgColor} flex items-center justify-center`}>
+                  <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                </div>
+              )}
+            </div>
+            <p className="font-display text-4xl font-bold">{stat.value}</p>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Recent Campaigns */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="glass rounded-xl"
+      >
+        <div className="p-6 border-b border-border flex items-center justify-between">
+          <div>
+            <h2 className="font-display text-lg font-semibold">Recent Campaigns</h2>
+            <p className="text-muted-foreground text-sm">Your latest email campaigns</p>
+          </div>
+          <Button variant="ghost" onClick={() => navigate("/campaigns")} className="gap-2">
+            View All
+            <ArrowUpRight className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {campaignsLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : !recentCampaigns || recentCampaigns.length === 0 ? (
+          <div className="p-12 text-center">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
               <Send className="w-8 h-8 text-primary" />
             </div>
-            <h2 className="font-display text-xl font-semibold mb-2">No campaigns yet</h2>
+            <h3 className="font-display text-xl font-semibold mb-2">No campaigns yet</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Create your first email campaign to start reaching your audience with high deliverability.
+              Create your first email campaign to start reaching your audience.
             </p>
-            <Button variant="hero" onClick={() => navigate("/campaigns/new")}>Create Your First Campaign</Button>
-          </motion.div>
-        </div>
-      </main>
-    </div>
+            <Button variant="hero" onClick={() => navigate("/campaigns/new")}>
+              Create Your First Campaign
+            </Button>
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {recentCampaigns.map((campaign, index) => (
+              <motion.div
+                key={campaign.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4 + index * 0.05 }}
+                className="p-4 hover:bg-secondary/30 transition-colors cursor-pointer flex items-center justify-between"
+                onClick={() =>
+                  campaign.status === "draft"
+                    ? navigate(`/campaigns/${campaign.id}/edit`)
+                    : navigate(`/campaigns/${campaign.id}`)
+                }
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
+                    <Send className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-medium">{campaign.name}</p>
+                    <p className="text-sm text-muted-foreground">{campaign.subject}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <Badge variant="secondary" className="gap-1.5">
+                    {getStatusIcon(campaign.status)}
+                    {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
+                  </Badge>
+                  <span className="text-sm text-muted-foreground hidden sm:block">
+                    {format(new Date(campaign.created_at), "MMM d")}
+                  </span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </motion.div>
+    </AppLayout>
   );
 };
 
