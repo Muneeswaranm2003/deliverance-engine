@@ -10,6 +10,8 @@ import {
   LogOut,
   Menu,
   X,
+  Zap,
+  FileText,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -17,6 +19,8 @@ const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Campaigns", href: "/campaigns", icon: Send },
   { label: "Contacts", href: "/contacts", icon: Users },
+  { label: "Automations", href: "/automations", icon: Zap },
+  { label: "Templates", href: "/templates", icon: FileText },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
