@@ -13,64 +13,93 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
 import {
   Plus,
   Zap,
-  Webhook,
-  Link2,
+  Mail,
+  Clock,
   Check,
   Loader2,
-  ExternalLink,
   Trash2,
+  Play,
+  Pause,
+  ArrowRight,
+  Send,
+  UserPlus,
+  MousePointerClick,
+  Calendar,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
-interface Integration {
+interface Automation {
   id: string;
   name: string;
-  type: "zapier" | "webhook" | "crm";
-  webhookUrl: string;
+  type: "campaign" | "followup";
+  trigger: string;
+  action: string;
+  delay?: string;
   enabled: boolean;
+  stats: {
+    triggered: number;
+    completed: number;
+  };
   createdAt: Date;
 }
 
-const integrationTypes = [
-  {
-    type: "zapier" as const,
-    name: "Zapier",
-    description: "Connect to 5,000+ apps via Zapier webhooks",
-    icon: Zap,
-    color: "text-orange-500",
-    bgColor: "bg-orange-500/10",
-  },
-  {
-    type: "webhook" as const,
-    name: "Custom Webhook",
-    description: "Send data to any HTTP endpoint",
-    icon: Webhook,
-    color: "text-blue-500",
-    bgColor: "bg-blue-500/10",
-  },
-  {
-    type: "crm" as const,
-    name: "CRM Integration",
-    description: "Sync contacts with your CRM system",
-    icon: Link2,
-    color: "text-green-500",
-    bgColor: "bg-green-500/10",
-  },
+const campaignTriggers = [
+  { id: "email_opened", name: "Email Opened", icon: Mail },
+  { id: "link_clicked", name: "Link Clicked", icon: MousePointerClick },
+  { id: "not_opened", name: "Not Opened (after X days)", icon: Clock },
+  { id: "new_subscriber", name: "New Subscriber", icon: UserPlus },
+];
+
+const followupTriggers = [
+  { id: "no_reply", name: "No Reply After", icon: Clock },
+  { id: "opened_no_click", name: "Opened But No Click", icon: Mail },
+  { id: "bounced", name: "Email Bounced", icon: Mail },
+  { id: "scheduled", name: "Scheduled Date", icon: Calendar },
+];
+
+const actions = [
+  { id: "send_email", name: "Send Follow-up Email" },
+  { id: "add_tag", name: "Add Tag to Contact" },
+  { id: "move_list", name: "Move to Another List" },
+  { id: "notify", name: "Send Notification" },
+  { id: "webhook", name: "Trigger Webhook" },
+];
+
+const delayOptions = [
+  { id: "1h", name: "1 hour" },
+  { id: "6h", name: "6 hours" },
+  { id: "1d", name: "1 day" },
+  { id: "2d", name: "2 days" },
+  { id: "3d", name: "3 days" },
+  { id: "1w", name: "1 week" },
 ];
 
 const Automations = () => {
-  const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [automations, setAutomations] = useState<Automation[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedType, setSelectedType] = useState<"zapier" | "webhook" | "crm" | null>(null);
-  const [formData, setFormData] = useState({ name: "", webhookUrl: "" });
-  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"campaign" | "followup">("campaign");
+  const [formData, setFormData] = useState({
+    name: "",
+    type: "campaign" as "campaign" | "followup",
+    trigger: "",
+    action: "",
+    delay: "",
+  });
 
   const handleCreate = () => {
-    if (!selectedType || !formData.name || !formData.webhookUrl) {
+    if (!formData.name || !formData.trigger || !formData.action) {
       toast({
         title: "Missing fields",
         description: "Please fill in all required fields",
@@ -79,169 +108,200 @@ const Automations = () => {
       return;
     }
 
-    const newIntegration: Integration = {
+    const newAutomation: Automation = {
       id: crypto.randomUUID(),
       name: formData.name,
-      type: selectedType,
-      webhookUrl: formData.webhookUrl,
+      type: formData.type,
+      trigger: formData.trigger,
+      action: formData.action,
+      delay: formData.delay || undefined,
       enabled: true,
+      stats: { triggered: 0, completed: 0 },
       createdAt: new Date(),
     };
 
-    setIntegrations([...integrations, newIntegration]);
+    setAutomations([...automations, newAutomation]);
     setIsDialogOpen(false);
-    setSelectedType(null);
-    setFormData({ name: "", webhookUrl: "" });
-    toast({ title: "Integration created successfully" });
+    setFormData({ name: "", type: "campaign", trigger: "", action: "", delay: "" });
+    toast({ title: "Automation created successfully" });
   };
 
-  const toggleIntegration = (id: string) => {
-    setIntegrations(
-      integrations.map((i) =>
-        i.id === id ? { ...i, enabled: !i.enabled } : i
+  const toggleAutomation = (id: string) => {
+    setAutomations(
+      automations.map((a) =>
+        a.id === id ? { ...a, enabled: !a.enabled } : a
       )
     );
   };
 
-  const deleteIntegration = (id: string) => {
-    setIntegrations(integrations.filter((i) => i.id !== id));
-    toast({ title: "Integration removed" });
+  const deleteAutomation = (id: string) => {
+    setAutomations(automations.filter((a) => a.id !== id));
+    toast({ title: "Automation deleted" });
   };
 
-  const testWebhook = async (integration: Integration) => {
-    setIsLoading(true);
-    try {
-      await fetch(integration.webhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        mode: "no-cors",
-        body: JSON.stringify({
-          test: true,
-          timestamp: new Date().toISOString(),
-          source: "MailForge",
-        }),
-      });
-      toast({
-        title: "Test sent",
-        description: "Check your webhook endpoint for the test payload",
-      });
-    } catch {
-      toast({
-        title: "Test failed",
-        description: "Could not reach the webhook endpoint",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const getTriggerName = (triggerId: string, type: "campaign" | "followup") => {
+    const triggers = type === "campaign" ? campaignTriggers : followupTriggers;
+    return triggers.find((t) => t.id === triggerId)?.name || triggerId;
   };
 
-  const getTypeConfig = (type: string) =>
-    integrationTypes.find((t) => t.type === type)!;
+  const getActionName = (actionId: string) => {
+    return actions.find((a) => a.id === actionId)?.name || actionId;
+  };
+
+  const getDelayName = (delayId: string) => {
+    return delayOptions.find((d) => d.id === delayId)?.name || delayId;
+  };
+
+  const filteredAutomations = automations.filter((a) => a.type === activeTab);
 
   return (
     <AppLayout
       title="Automations"
-      description="Connect your email campaigns to external services"
+      description="Set up automated campaign responses and follow-ups"
       action={
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button variant="hero" className="gap-2">
               <Plus className="w-4 h-4" />
-              Add Integration
+              New Automation
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>Add New Integration</DialogTitle>
+              <DialogTitle>Create Automation</DialogTitle>
             </DialogHeader>
 
-            {!selectedType ? (
-              <div className="grid gap-3 py-4">
-                {integrationTypes.map((type) => (
-                  <button
-                    key={type.type}
-                    onClick={() => setSelectedType(type.type)}
-                    className="flex items-center gap-4 p-4 rounded-lg border border-border hover:border-primary/50 hover:bg-secondary/30 transition-all text-left"
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Automation Name</Label>
+                <Input
+                  id="name"
+                  placeholder="e.g., Follow up on unopened emails"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Automation Type</Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value: "campaign" | "followup") =>
+                    setFormData({ ...formData, type: value, trigger: "" })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="campaign">
+                      <span className="flex items-center gap-2">
+                        <Send className="w-4 h-4" />
+                        Campaign Automation
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="followup">
+                      <span className="flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        Follow-up Automation
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>When this happens (Trigger)</Label>
+                <Select
+                  value={formData.trigger}
+                  onValueChange={(value) => setFormData({ ...formData, trigger: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a trigger" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(formData.type === "campaign" ? campaignTriggers : followupTriggers).map(
+                      (trigger) => (
+                        <SelectItem key={trigger.id} value={trigger.id}>
+                          <span className="flex items-center gap-2">
+                            <trigger.icon className="w-4 h-4" />
+                            {trigger.name}
+                          </span>
+                        </SelectItem>
+                      )
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {(formData.trigger === "not_opened" || formData.trigger === "no_reply") && (
+                <div className="space-y-2">
+                  <Label>Wait Duration</Label>
+                  <Select
+                    value={formData.delay}
+                    onValueChange={(value) => setFormData({ ...formData, delay: value })}
                   >
-                    <div className={`w-10 h-10 rounded-lg ${type.bgColor} flex items-center justify-center`}>
-                      <type.icon className={`w-5 h-5 ${type.color}`} />
-                    </div>
-                    <div>
-                      <p className="font-medium">{type.name}</p>
-                      <p className="text-sm text-muted-foreground">{type.description}</p>
-                    </div>
-                  </button>
-                ))}
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select delay" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {delayOptions.map((delay) => (
+                        <SelectItem key={delay.id} value={delay.id}>
+                          {delay.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Do this (Action)</Label>
+                <Select
+                  value={formData.action}
+                  onValueChange={(value) => setFormData({ ...formData, action: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an action" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {actions.map((action) => (
+                      <SelectItem key={action.id} value={action.id}>
+                        {action.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            ) : (
-              <div className="space-y-4 py-4">
-                <div className="flex items-center gap-3 mb-4">
-                  {(() => {
-                    const config = getTypeConfig(selectedType);
-                    return (
-                      <>
-                        <div className={`w-10 h-10 rounded-lg ${config.bgColor} flex items-center justify-center`}>
-                          <config.icon className={`w-5 h-5 ${config.color}`} />
-                        </div>
-                        <div>
-                          <p className="font-medium">{config.name}</p>
-                          <button
-                            onClick={() => setSelectedType(null)}
-                            className="text-sm text-primary hover:underline"
-                          >
-                            Change type
-                          </button>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="name">Integration Name</Label>
-                  <Input
-                    id="name"
-                    placeholder="e.g., New subscriber to Slack"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="webhookUrl">Webhook URL</Label>
-                  <Input
-                    id="webhookUrl"
-                    placeholder="https://hooks.zapier.com/..."
-                    value={formData.webhookUrl}
-                    onChange={(e) => setFormData({ ...formData, webhookUrl: e.target.value })}
-                  />
-                  {selectedType === "zapier" && (
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <ExternalLink className="w-3 h-3" />
-                      Create a Zap with "Webhooks by Zapier" trigger
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex justify-end gap-3 pt-4">
-                  <Button variant="outline" onClick={() => {
-                    setSelectedType(null);
-                    setFormData({ name: "", webhookUrl: "" });
-                  }}>
-                    Cancel
-                  </Button>
-                  <Button variant="hero" onClick={handleCreate}>
-                    Create Integration
-                  </Button>
-                </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button variant="hero" onClick={handleCreate}>
+                  Create Automation
+                </Button>
               </div>
-            )}
+            </div>
           </DialogContent>
         </Dialog>
       }
     >
-      {integrations.length === 0 ? (
+      {/* Tabs for Campaign vs Follow-up */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "campaign" | "followup")} className="mb-6">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="campaign" className="gap-2">
+            <Send className="w-4 h-4" />
+            Campaign Automations
+          </TabsTrigger>
+          <TabsTrigger value="followup" className="gap-2">
+            <Clock className="w-4 h-4" />
+            Follow-up Automations
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {filteredAutomations.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -251,84 +311,99 @@ const Automations = () => {
             <Zap className="w-8 h-8 text-primary" />
           </div>
           <h2 className="font-display text-xl font-semibold mb-2">
-            No integrations yet
+            No {activeTab === "campaign" ? "campaign" : "follow-up"} automations yet
           </h2>
           <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-            Connect your campaigns to Zapier, webhooks, or CRM systems to automate your workflow.
+            {activeTab === "campaign"
+              ? "Create automations that trigger based on campaign events like opens and clicks."
+              : "Set up automated follow-ups for contacts who haven't responded."}
           </p>
-          <Button variant="hero" onClick={() => setIsDialogOpen(true)}>
-            Add Your First Integration
+          <Button variant="hero" onClick={() => {
+            setFormData({ ...formData, type: activeTab });
+            setIsDialogOpen(true);
+          }}>
+            Create Your First Automation
           </Button>
         </motion.div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {integrations.map((integration, index) => {
-            const config = getTypeConfig(integration.type);
-            return (
-              <motion.div
-                key={integration.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Card className="glass border-border hover:border-primary/30 transition-colors">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-lg ${config.bgColor} flex items-center justify-center`}>
-                          <config.icon className={`w-5 h-5 ${config.color}`} />
-                        </div>
-                        <div>
-                          <CardTitle className="text-base">{integration.name}</CardTitle>
-                          <CardDescription>{config.name}</CardDescription>
-                        </div>
-                      </div>
-                      <Switch
-                        checked={integration.enabled}
-                        onCheckedChange={() => toggleIntegration(integration.id)}
-                      />
+          {filteredAutomations.map((automation, index) => (
+            <motion.div
+              key={automation.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+            >
+              <Card className="glass border-border hover:border-primary/30 transition-colors">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-base">{automation.name}</CardTitle>
+                      <CardDescription>
+                        {automation.type === "campaign" ? "Campaign" : "Follow-up"}
+                      </CardDescription>
                     </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Badge variant={integration.enabled ? "default" : "secondary"}>
-                        {integration.enabled ? (
-                          <>
-                            <Check className="w-3 h-3 mr-1" />
-                            Active
-                          </>
-                        ) : (
-                          "Disabled"
-                        )}
-                      </Badge>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => testWebhook(integration)}
-                        disabled={isLoading || !integration.enabled}
-                      >
-                        {isLoading ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          "Test"
-                        )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => deleteIntegration(integration.id)}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
+                    <Switch
+                      checked={automation.enabled}
+                      onCheckedChange={() => toggleAutomation(automation.id)}
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0 space-y-4">
+                  {/* Workflow visualization */}
+                  <div className="flex items-center gap-2 text-sm">
+                    <Badge variant="outline" className="shrink-0">
+                      {getTriggerName(automation.trigger, automation.type)}
+                    </Badge>
+                    {automation.delay && (
+                      <>
+                        <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                        <Badge variant="outline" className="shrink-0">
+                          <Clock className="w-3 h-3 mr-1" />
+                          {getDelayName(automation.delay)}
+                        </Badge>
+                      </>
+                    )}
+                    <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                    <Badge variant="secondary" className="shrink-0">
+                      {getActionName(automation.action)}
+                    </Badge>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="flex gap-4 text-xs text-muted-foreground">
+                    <span>Triggered: {automation.stats.triggered}</span>
+                    <span>Completed: {automation.stats.completed}</span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-between">
+                    <Badge variant={automation.enabled ? "default" : "secondary"}>
+                      {automation.enabled ? (
+                        <>
+                          <Play className="w-3 h-3 mr-1" />
+                          Running
+                        </>
+                      ) : (
+                        <>
+                          <Pause className="w-3 h-3 mr-1" />
+                          Paused
+                        </>
+                      )}
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => deleteAutomation(automation.id)}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
         </div>
       )}
     </AppLayout>
