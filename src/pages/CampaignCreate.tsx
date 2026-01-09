@@ -10,6 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import EmailTemplateEditor from "@/components/campaigns/EmailTemplateEditor";
 import RecipientSelector from "@/components/campaigns/RecipientSelector";
 import SchedulingOptions from "@/components/campaigns/SchedulingOptions";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -21,8 +24,82 @@ import {
   LayoutDashboard,
   Settings,
   LogOut,
-  Loader2
+  Loader2,
+  FileText,
+  Sparkles
 } from "lucide-react";
+
+interface Template {
+  id: string;
+  name: string;
+  subject: string;
+  content: string;
+  category: string;
+}
+
+const savedTemplates: Template[] = [
+  {
+    id: "1",
+    name: "Welcome Email",
+    subject: "Welcome to {{company}}!",
+    content: `Hi {{firstName}},
+
+Welcome to {{company}}! We're thrilled to have you on board.
+
+Here's what you can expect:
+- Weekly updates on our latest features
+- Exclusive tips and resources
+- Priority support
+
+If you have any questions, just reply to this email.
+
+Best regards,
+The {{company}} Team`,
+    category: "Welcome",
+  },
+  {
+    id: "2",
+    name: "Monthly Newsletter",
+    subject: "{{company}} Monthly Update - {{month}}",
+    content: `Hi {{firstName}},
+
+Here's what's new this month at {{company}}:
+
+## New Features
+- Feature 1 description
+- Feature 2 description
+
+## Tips & Tricks
+Learn how to get the most out of our platform...
+
+## Upcoming Events
+Mark your calendar for our next webinar!
+
+Stay tuned for more updates.
+
+Best,
+The {{company}} Team`,
+    category: "Newsletter",
+  },
+  {
+    id: "3",
+    name: "Promotional Offer",
+    subject: "Special Offer Just for You, {{firstName}}!",
+    content: `Hi {{firstName}},
+
+We've got an exclusive offer just for you!
+
+🎉 Get 20% off your next purchase with code: SPECIAL20
+
+This offer is valid until the end of the month, so don't miss out.
+
+Shop now and save!
+
+Cheers,
+The {{company}} Team`,
+    category: "Promotional",
+  },
+];
 
 interface Recipient {
   email: string;
@@ -325,15 +402,75 @@ const CampaignCreate = () => {
               <div className="space-y-6">
                 <div>
                   <h2 className="font-display text-xl font-semibold mb-2">Email Content</h2>
-                  <p className="text-muted-foreground">Design your email template</p>
+                  <p className="text-muted-foreground">Start from a template or create from scratch</p>
                 </div>
 
-                <EmailTemplateEditor
-                  subject={subject}
-                  onSubjectChange={setSubject}
-                  content={content}
-                  onContentChange={setContent}
-                />
+                {/* Template Selector */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Choose a Template (Optional)</Label>
+                  <ScrollArea className="w-full">
+                    <div className="flex gap-3 pb-2">
+                      {/* Start from scratch option */}
+                      <Card 
+                        className={`shrink-0 w-48 cursor-pointer transition-all hover:border-primary/50 ${
+                          !subject && !content ? 'border-primary ring-2 ring-primary/20' : 'border-border'
+                        }`}
+                        onClick={() => {
+                          setSubject("");
+                          setContent("");
+                          toast({ title: "Starting from scratch" });
+                        }}
+                      >
+                        <CardContent className="p-4 flex flex-col items-center justify-center min-h-[120px]">
+                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-2">
+                            <Sparkles className="w-5 h-5 text-primary" />
+                          </div>
+                          <p className="text-sm font-medium text-center">Start from Scratch</p>
+                          <p className="text-xs text-muted-foreground text-center mt-1">Create your own</p>
+                        </CardContent>
+                      </Card>
+
+                      {/* Template options */}
+                      {savedTemplates.map((template) => (
+                        <Card 
+                          key={template.id}
+                          className={`shrink-0 w-48 cursor-pointer transition-all hover:border-primary/50 ${
+                            subject === template.subject && content === template.content 
+                              ? 'border-primary ring-2 ring-primary/20' 
+                              : 'border-border'
+                          }`}
+                          onClick={() => {
+                            setSubject(template.subject);
+                            setContent(template.content);
+                            toast({ title: `Applied "${template.name}" template` });
+                          }}
+                        >
+                          <CardContent className="p-4 flex flex-col min-h-[120px]">
+                            <div className="flex items-center gap-2 mb-2">
+                              <FileText className="w-4 h-4 text-primary" />
+                              <Badge variant="secondary" className="text-xs">
+                                {template.category}
+                              </Badge>
+                            </div>
+                            <p className="text-sm font-medium line-clamp-2">{template.name}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                              {template.subject}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+
+                <div className="border-t border-border pt-6">
+                  <EmailTemplateEditor
+                    subject={subject}
+                    onSubjectChange={setSubject}
+                    content={content}
+                    onContentChange={setContent}
+                  />
+                </div>
               </div>
             )}
 
