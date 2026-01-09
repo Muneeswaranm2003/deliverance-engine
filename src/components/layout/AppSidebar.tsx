@@ -12,6 +12,7 @@ import {
   X,
   Zap,
   FileText,
+  Link2,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -21,6 +22,7 @@ const navItems = [
   { label: "Contacts", href: "/contacts", icon: Users },
   { label: "Automations", href: "/automations", icon: Zap },
   { label: "Templates", href: "/templates", icon: FileText },
+  { label: "Integrations", href: "/integrations", icon: Link2 },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 

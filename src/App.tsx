@@ -14,6 +14,7 @@ import CampaignEdit from "./pages/CampaignEdit";
 import Contacts from "./pages/Contacts";
 import Automations from "./pages/Automations";
 import Templates from "./pages/Templates";
+import Integrations from "./pages/Integrations";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -90,6 +91,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Settings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/integrations"
+              element={
+                <ProtectedRoute>
+                  <Integrations />
                 </ProtectedRoute>
               }
             />
