@@ -38,6 +38,7 @@ import {
   Calendar,
   Copy,
   ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -93,6 +94,7 @@ const Automations = () => {
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"campaign" | "followup">("campaign");
   const [formData, setFormData] = useState({
@@ -105,6 +107,37 @@ const Automations = () => {
   });
 
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webhook-handler`;
+  const scheduledUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-scheduled-automations`;
+
+  const processScheduledAutomations = async () => {
+    setIsProcessing(true);
+    try {
+      const response = await fetch(scheduledUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({
+          title: "Scheduled automations processed",
+          description: `Checked ${data.automations_checked} automations, processed ${data.total_contacts_processed} contacts`,
+        });
+        // Refresh automations to show updated counts
+        fetchAutomations();
+      } else {
+        throw new Error(data.error || 'Failed to process');
+      }
+    } catch (error) {
+      console.error('Error processing scheduled automations:', error);
+      toast({
+        title: "Error processing automations",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   useEffect(() => {
     fetchAutomations();
@@ -445,6 +478,38 @@ const Automations = () => {
                 <Copy className="w-4 h-4" />
               </Button>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Scheduled Automations Card */}
+      <Card className="mb-6 border-secondary/20 bg-secondary/5">
+        <CardContent className="py-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-secondary/20 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-secondary-foreground" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">Scheduled Automations</p>
+                <p className="text-xs text-muted-foreground">
+                  Process time-based triggers like "not opened after X days"
+                </p>
+              </div>
+            </div>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={processScheduledAutomations}
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              Run Now
+            </Button>
           </div>
         </CardContent>
       </Card>
