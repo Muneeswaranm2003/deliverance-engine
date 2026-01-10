@@ -14,6 +14,96 @@ export type Database = {
   }
   public: {
     Tables: {
+      automation_logs: {
+        Row: {
+          automation_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          status: string
+          webhook_event_id: string | null
+        }
+        Insert: {
+          automation_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          status: string
+          webhook_event_id?: string | null
+        }
+        Update: {
+          automation_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          status?: string
+          webhook_event_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_logs_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_logs_webhook_event_id_fkey"
+            columns: ["webhook_event_id"]
+            isOneToOne: false
+            referencedRelation: "webhook_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automations: {
+        Row: {
+          action: string
+          completed_count: number | null
+          created_at: string
+          delay: string | null
+          enabled: boolean
+          id: string
+          name: string
+          trigger: string
+          triggered_count: number | null
+          type: string
+          updated_at: string
+          user_id: string
+          webhook_url: string | null
+        }
+        Insert: {
+          action: string
+          completed_count?: number | null
+          created_at?: string
+          delay?: string | null
+          enabled?: boolean
+          id?: string
+          name: string
+          trigger: string
+          triggered_count?: number | null
+          type: string
+          updated_at?: string
+          user_id: string
+          webhook_url?: string | null
+        }
+        Update: {
+          action?: string
+          completed_count?: number | null
+          created_at?: string
+          delay?: string | null
+          enabled?: boolean
+          id?: string
+          name?: string
+          trigger?: string
+          triggered_count?: number | null
+          type?: string
+          updated_at?: string
+          user_id?: string
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
       campaign_recipients: {
         Row: {
           campaign_id: string
@@ -235,6 +325,57 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      webhook_events: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          email: string
+          event_type: string
+          id: string
+          payload: Json | null
+          processed: boolean | null
+          processed_at: string | null
+          recipient_id: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          email: string
+          event_type: string
+          id?: string
+          payload?: Json | null
+          processed?: boolean | null
+          processed_at?: string | null
+          recipient_id?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          email?: string
+          event_type?: string
+          id?: string
+          payload?: Json | null
+          processed?: boolean | null
+          processed_at?: string | null
+          recipient_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_events_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_events_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_recipients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

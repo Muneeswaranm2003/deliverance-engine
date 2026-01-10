@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,6 @@ import {
   Zap,
   Mail,
   Clock,
-  Check,
   Loader2,
   Trash2,
   Play,
@@ -37,8 +36,12 @@ import {
   UserPlus,
   MousePointerClick,
   Calendar,
+  Copy,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Automation {
   id: string;
@@ -48,11 +51,10 @@ interface Automation {
   action: string;
   delay?: string;
   enabled: boolean;
-  stats: {
-    triggered: number;
-    completed: number;
-  };
-  createdAt: Date;
+  webhook_url?: string;
+  triggered_count: number;
+  completed_count: number;
+  created_at: string;
 }
 
 const campaignTriggers = [
@@ -87,7 +89,10 @@ const delayOptions = [
 ];
 
 const Automations = () => {
+  const { user } = useAuth();
   const [automations, setAutomations] = useState<Automation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"campaign" | "followup">("campaign");
   const [formData, setFormData] = useState({
@@ -96,9 +101,45 @@ const Automations = () => {
     trigger: "",
     action: "",
     delay: "",
+    webhook_url: "",
   });
 
-  const handleCreate = () => {
+  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webhook-handler`;
+
+  useEffect(() => {
+    fetchAutomations();
+  }, [user]);
+
+  const fetchAutomations = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('automations')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      setAutomations(data?.map(a => ({
+        ...a,
+        type: a.type as "campaign" | "followup",
+        delay: a.delay || undefined,
+        webhook_url: a.webhook_url || undefined,
+      })) || []);
+    } catch (error) {
+      console.error('Error fetching automations:', error);
+      toast({
+        title: "Error loading automations",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreate = async () => {
     if (!formData.name || !formData.trigger || !formData.action) {
       toast({
         title: "Missing fields",
@@ -108,35 +149,102 @@ const Automations = () => {
       return;
     }
 
-    const newAutomation: Automation = {
-      id: crypto.randomUUID(),
-      name: formData.name,
-      type: formData.type,
-      trigger: formData.trigger,
-      action: formData.action,
-      delay: formData.delay || undefined,
-      enabled: true,
-      stats: { triggered: 0, completed: 0 },
-      createdAt: new Date(),
-    };
+    if (formData.action === "webhook" && !formData.webhook_url) {
+      toast({
+        title: "Webhook URL required",
+        description: "Please enter a webhook URL for this action",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    setAutomations([...automations, newAutomation]);
-    setIsDialogOpen(false);
-    setFormData({ name: "", type: "campaign", trigger: "", action: "", delay: "" });
-    toast({ title: "Automation created successfully" });
+    if (!user) return;
+
+    setIsSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from('automations')
+        .insert({
+          user_id: user.id,
+          name: formData.name,
+          type: formData.type,
+          trigger: formData.trigger,
+          action: formData.action,
+          delay: formData.delay || null,
+          webhook_url: formData.action === "webhook" ? formData.webhook_url : null,
+          enabled: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setAutomations([{
+        ...data,
+        type: data.type as "campaign" | "followup",
+        delay: data.delay || undefined,
+        webhook_url: data.webhook_url || undefined,
+      }, ...automations]);
+      setIsDialogOpen(false);
+      setFormData({ name: "", type: "campaign", trigger: "", action: "", delay: "", webhook_url: "" });
+      toast({ title: "Automation created successfully" });
+    } catch (error) {
+      console.error('Error creating automation:', error);
+      toast({
+        title: "Error creating automation",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const toggleAutomation = (id: string) => {
-    setAutomations(
-      automations.map((a) =>
-        a.id === id ? { ...a, enabled: !a.enabled } : a
-      )
-    );
+  const toggleAutomation = async (id: string, currentEnabled: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('automations')
+        .update({ enabled: !currentEnabled })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setAutomations(
+        automations.map((a) =>
+          a.id === id ? { ...a, enabled: !currentEnabled } : a
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling automation:', error);
+      toast({
+        title: "Error updating automation",
+        variant: "destructive",
+      });
+    }
   };
 
-  const deleteAutomation = (id: string) => {
-    setAutomations(automations.filter((a) => a.id !== id));
-    toast({ title: "Automation deleted" });
+  const deleteAutomation = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('automations')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setAutomations(automations.filter((a) => a.id !== id));
+      toast({ title: "Automation deleted" });
+    } catch (error) {
+      console.error('Error deleting automation:', error);
+      toast({
+        title: "Error deleting automation",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const copyWebhookUrl = () => {
+    navigator.clipboard.writeText(webhookUrl);
+    toast({ title: "Webhook URL copied to clipboard" });
   };
 
   const getTriggerName = (triggerId: string, type: "campaign" | "followup") => {
@@ -153,6 +261,16 @@ const Automations = () => {
   };
 
   const filteredAutomations = automations.filter((a) => a.type === activeTab);
+
+  if (isLoading) {
+    return (
+      <AppLayout title="Automations" description="Loading...">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout
@@ -274,11 +392,28 @@ const Automations = () => {
                 </Select>
               </div>
 
+              {formData.action === "webhook" && (
+                <div className="space-y-2">
+                  <Label htmlFor="webhook_url">Webhook URL</Label>
+                  <Input
+                    id="webhook_url"
+                    type="url"
+                    placeholder="https://your-webhook-endpoint.com"
+                    value={formData.webhook_url}
+                    onChange={(e) => setFormData({ ...formData, webhook_url: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This URL will be called when the automation triggers
+                  </p>
+                </div>
+              )}
+
               <div className="flex justify-end gap-3 pt-4">
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button variant="hero" onClick={handleCreate}>
+                <Button variant="hero" onClick={handleCreate} disabled={isSaving}>
+                  {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Create Automation
                 </Button>
               </div>
@@ -287,6 +422,33 @@ const Automations = () => {
         </Dialog>
       }
     >
+      {/* Webhook URL Info Card */}
+      <Card className="mb-6 border-primary/20 bg-primary/5">
+        <CardContent className="py-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <ExternalLink className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">Incoming Webhook URL</p>
+                <p className="text-xs text-muted-foreground">
+                  Configure your email provider to send events to this URL
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-1 min-w-0 max-w-xl">
+              <code className="text-xs bg-background px-3 py-2 rounded border flex-1 truncate">
+                {webhookUrl}
+              </code>
+              <Button size="sm" variant="outline" onClick={copyWebhookUrl}>
+                <Copy className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Tabs for Campaign vs Follow-up */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "campaign" | "followup")} className="mb-6">
         <TabsList className="grid w-full max-w-md grid-cols-2">
@@ -345,13 +507,13 @@ const Automations = () => {
                     </div>
                     <Switch
                       checked={automation.enabled}
-                      onCheckedChange={() => toggleAutomation(automation.id)}
+                      onCheckedChange={() => toggleAutomation(automation.id, automation.enabled)}
                     />
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0 space-y-4">
                   {/* Workflow visualization */}
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="flex items-center gap-2 text-sm flex-wrap">
                     <Badge variant="outline" className="shrink-0">
                       {getTriggerName(automation.trigger, automation.type)}
                     </Badge>
@@ -372,8 +534,8 @@ const Automations = () => {
 
                   {/* Stats */}
                   <div className="flex gap-4 text-xs text-muted-foreground">
-                    <span>Triggered: {automation.stats.triggered}</span>
-                    <span>Completed: {automation.stats.completed}</span>
+                    <span>Triggered: {automation.triggered_count}</span>
+                    <span>Completed: {automation.completed_count}</span>
                   </div>
 
                   {/* Actions */}
