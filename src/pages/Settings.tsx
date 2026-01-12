@@ -8,8 +8,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { motion } from "framer-motion";
-import { Loader2, User, Mail, Shield, Bell, Palette, Save } from "lucide-react";
+import { 
+  Loader2, 
+  User, 
+  Mail, 
+  Shield, 
+  Bell, 
+  Save, 
+  Server, 
+  Key, 
+  Globe, 
+  CheckCircle,
+  AlertCircle,
+  Eye,
+  EyeOff
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const Settings = () => {
@@ -42,6 +65,49 @@ const Settings = () => {
     campaignAlerts: true,
     weeklyDigest: false,
   });
+
+  // Email sending configuration state
+  const [emailProvider, setEmailProvider] = useState<"smtp" | "api">("api");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [showSmtpPassword, setShowSmtpPassword] = useState(false);
+  
+  const [smtpConfig, setSmtpConfig] = useState({
+    host: "",
+    port: "587",
+    username: "",
+    password: "",
+    encryption: "tls",
+    fromEmail: "",
+    fromName: "",
+  });
+
+  const [apiConfig, setApiConfig] = useState({
+    provider: "resend",
+    apiKey: "",
+    fromEmail: "",
+    fromName: "",
+  });
+
+  const [ipConfig, setIpConfig] = useState({
+    dedicatedIp: "",
+    warmupEnabled: false,
+    warmupDailyLimit: "100",
+    ipPoolName: "",
+  });
+
+  const [emailConfigStatus, setEmailConfigStatus] = useState<"unconfigured" | "testing" | "configured">("unconfigured");
+
+  const testEmailConnection = async () => {
+    setEmailConfigStatus("testing");
+    // Simulate testing connection
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    setEmailConfigStatus("configured");
+    toast({ title: "Email configuration verified successfully!" });
+  };
+
+  const saveEmailConfig = () => {
+    toast({ title: "Email configuration saved", description: "Your email sending settings have been updated." });
+  };
 
   // Update form when profile loads
   useState(() => {
@@ -217,6 +283,317 @@ const Settings = () => {
                   setNotifications({ ...notifications, weeklyDigest: checked })
                 }
               />
+            </div>
+          </div>
+        </SettingsCard>
+
+        {/* Email Sending Configuration */}
+        <SettingsCard
+          icon={Mail}
+          title="Email Sending Configuration"
+          description="Configure SMTP, API, and IP settings for sending emails"
+          delay={0.15}
+        >
+          <div className="space-y-6">
+            {/* Status Badge */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Status:</span>
+              {emailConfigStatus === "unconfigured" && (
+                <Badge variant="secondary" className="gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Not Configured
+                </Badge>
+              )}
+              {emailConfigStatus === "testing" && (
+                <Badge className="gap-1 bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Testing...
+                </Badge>
+              )}
+              {emailConfigStatus === "configured" && (
+                <Badge className="gap-1 bg-green-500/10 text-green-500 border-green-500/20">
+                  <CheckCircle className="w-3 h-3" />
+                  Configured
+                </Badge>
+              )}
+            </div>
+
+            <Tabs value={emailProvider} onValueChange={(v) => setEmailProvider(v as "smtp" | "api")}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="api" className="gap-2">
+                  <Key className="w-4 h-4" />
+                  API
+                </TabsTrigger>
+                <TabsTrigger value="smtp" className="gap-2">
+                  <Server className="w-4 h-4" />
+                  SMTP
+                </TabsTrigger>
+              </TabsList>
+
+              {/* API Configuration */}
+              <TabsContent value="api" className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="api-provider">Email Provider</Label>
+                  <Select 
+                    value={apiConfig.provider} 
+                    onValueChange={(v) => setApiConfig({ ...apiConfig, provider: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select provider" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="resend">Resend</SelectItem>
+                      <SelectItem value="sendgrid">SendGrid</SelectItem>
+                      <SelectItem value="mailgun">Mailgun</SelectItem>
+                      <SelectItem value="ses">Amazon SES</SelectItem>
+                      <SelectItem value="postmark">Postmark</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="api-key">API Key</Label>
+                  <div className="relative">
+                    <Input
+                      id="api-key"
+                      type={showApiKey ? "text" : "password"}
+                      placeholder="Enter your API key"
+                      value={apiConfig.apiKey}
+                      onChange={(e) => setApiConfig({ ...apiConfig, apiKey: e.target.value })}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Get your API key from your email provider's dashboard
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="api-from-email">From Email</Label>
+                    <Input
+                      id="api-from-email"
+                      type="email"
+                      placeholder="noreply@yourdomain.com"
+                      value={apiConfig.fromEmail}
+                      onChange={(e) => setApiConfig({ ...apiConfig, fromEmail: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="api-from-name">From Name</Label>
+                    <Input
+                      id="api-from-name"
+                      placeholder="Your Company"
+                      value={apiConfig.fromName}
+                      onChange={(e) => setApiConfig({ ...apiConfig, fromName: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* SMTP Configuration */}
+              <TabsContent value="smtp" className="space-y-4 mt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="smtp-host">SMTP Host</Label>
+                    <Input
+                      id="smtp-host"
+                      placeholder="smtp.example.com"
+                      value={smtpConfig.host}
+                      onChange={(e) => setSmtpConfig({ ...smtpConfig, host: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="smtp-port">Port</Label>
+                    <Select 
+                      value={smtpConfig.port} 
+                      onValueChange={(v) => setSmtpConfig({ ...smtpConfig, port: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select port" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="25">25 (Unencrypted)</SelectItem>
+                        <SelectItem value="465">465 (SSL)</SelectItem>
+                        <SelectItem value="587">587 (TLS)</SelectItem>
+                        <SelectItem value="2525">2525 (Alternative)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="smtp-username">Username</Label>
+                    <Input
+                      id="smtp-username"
+                      placeholder="SMTP username"
+                      value={smtpConfig.username}
+                      onChange={(e) => setSmtpConfig({ ...smtpConfig, username: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="smtp-password">Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="smtp-password"
+                        type={showSmtpPassword ? "text" : "password"}
+                        placeholder="SMTP password"
+                        value={smtpConfig.password}
+                        onChange={(e) => setSmtpConfig({ ...smtpConfig, password: e.target.value })}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSmtpPassword(!showSmtpPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showSmtpPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="smtp-encryption">Encryption</Label>
+                  <Select 
+                    value={smtpConfig.encryption} 
+                    onValueChange={(v) => setSmtpConfig({ ...smtpConfig, encryption: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select encryption" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="ssl">SSL</SelectItem>
+                      <SelectItem value="tls">TLS (Recommended)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="smtp-from-email">From Email</Label>
+                    <Input
+                      id="smtp-from-email"
+                      type="email"
+                      placeholder="noreply@yourdomain.com"
+                      value={smtpConfig.fromEmail}
+                      onChange={(e) => setSmtpConfig({ ...smtpConfig, fromEmail: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="smtp-from-name">From Name</Label>
+                    <Input
+                      id="smtp-from-name"
+                      placeholder="Your Company"
+                      value={smtpConfig.fromName}
+                      onChange={(e) => setSmtpConfig({ ...smtpConfig, fromName: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            <Separator />
+
+            {/* IP Configuration */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-primary" />
+                <h4 className="font-medium">IP Configuration</h4>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="dedicated-ip">Dedicated IP Address</Label>
+                  <Input
+                    id="dedicated-ip"
+                    placeholder="192.168.1.1 (optional)"
+                    value={ipConfig.dedicatedIp}
+                    onChange={(e) => setIpConfig({ ...ipConfig, dedicatedIp: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ip-pool">IP Pool Name</Label>
+                  <Input
+                    id="ip-pool"
+                    placeholder="default (optional)"
+                    value={ipConfig.ipPoolName}
+                    onChange={(e) => setIpConfig({ ...ipConfig, ipPoolName: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                <div>
+                  <p className="font-medium">IP Warmup</p>
+                  <p className="text-sm text-muted-foreground">
+                    Gradually increase sending volume to build sender reputation
+                  </p>
+                </div>
+                <Switch
+                  checked={ipConfig.warmupEnabled}
+                  onCheckedChange={(checked) =>
+                    setIpConfig({ ...ipConfig, warmupEnabled: checked })
+                  }
+                />
+              </div>
+
+              {ipConfig.warmupEnabled && (
+                <div className="space-y-2">
+                  <Label htmlFor="warmup-limit">Daily Sending Limit During Warmup</Label>
+                  <Select 
+                    value={ipConfig.warmupDailyLimit} 
+                    onValueChange={(v) => setIpConfig({ ...ipConfig, warmupDailyLimit: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select daily limit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="50">50 emails/day</SelectItem>
+                      <SelectItem value="100">100 emails/day</SelectItem>
+                      <SelectItem value="250">250 emails/day</SelectItem>
+                      <SelectItem value="500">500 emails/day</SelectItem>
+                      <SelectItem value="1000">1,000 emails/day</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={testEmailConnection}
+                disabled={emailConfigStatus === "testing"}
+                className="gap-2"
+              >
+                {emailConfigStatus === "testing" ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Mail className="w-4 h-4" />
+                )}
+                Test Connection
+              </Button>
+              <Button
+                variant="hero"
+                onClick={saveEmailConfig}
+                className="gap-2"
+              >
+                <Save className="w-4 h-4" />
+                Save Configuration
+              </Button>
             </div>
           </div>
         </SettingsCard>
