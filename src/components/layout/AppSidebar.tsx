@@ -13,6 +13,7 @@ import {
   Zap,
   FileText,
   Link2,
+  Activity,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -21,6 +22,7 @@ const navItems = [
   { label: "Campaigns", href: "/campaigns", icon: Send },
   { label: "Contacts", href: "/contacts", icon: Users },
   { label: "Automations", href: "/automations", icon: Zap },
+  { label: "Automation Logs", href: "/automations/logs", icon: Activity },
   { label: "Templates", href: "/templates", icon: FileText },
   { label: "Integrations", href: "/integrations", icon: Link2 },
   { label: "Settings", href: "/settings", icon: Settings },

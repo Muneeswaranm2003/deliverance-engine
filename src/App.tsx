@@ -13,6 +13,7 @@ import CampaignCreate from "./pages/CampaignCreate";
 import CampaignEdit from "./pages/CampaignEdit";
 import Contacts from "./pages/Contacts";
 import Automations from "./pages/Automations";
+import AutomationLogs from "./pages/AutomationLogs";
 import Templates from "./pages/Templates";
 import Integrations from "./pages/Integrations";
 import Settings from "./pages/Settings";
@@ -75,6 +76,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Automations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/automations/logs"
+              element={
+                <ProtectedRoute>
+                  <AutomationLogs />
                 </ProtectedRoute>
               }
             />
