@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,6 +55,23 @@ const Settings = () => {
     enabled: !!user?.id,
   });
 
+  // Fetch email settings
+  const { data: emailSettings, isLoading: emailSettingsLoading } = useQuery({
+    queryKey: ["email_settings", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("email_settings")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
   const [formData, setFormData] = useState({
     full_name: "",
     email: "",
@@ -89,35 +106,158 @@ const Settings = () => {
   });
 
   const [ipConfig, setIpConfig] = useState({
-    dedicatedIp: "",
+    dedicatedIp: false,
     warmupEnabled: false,
     warmupDailyLimit: "100",
     ipPoolName: "",
   });
 
   const [emailConfigStatus, setEmailConfigStatus] = useState<"unconfigured" | "testing" | "configured">("unconfigured");
+  const [isSavingEmailConfig, setIsSavingEmailConfig] = useState(false);
+
+  // Load email settings when fetched
+  useEffect(() => {
+    if (emailSettings) {
+      setEmailProvider(emailSettings.provider_type as "smtp" | "api");
+      setApiConfig({
+        provider: emailSettings.api_provider || "resend",
+        apiKey: emailSettings.api_key || "",
+        fromEmail: emailSettings.api_from_email || "",
+        fromName: emailSettings.api_from_name || "",
+      });
+      setSmtpConfig({
+        host: emailSettings.smtp_host || "",
+        port: String(emailSettings.smtp_port || 587),
+        username: emailSettings.smtp_username || "",
+        password: emailSettings.smtp_password || "",
+        encryption: emailSettings.smtp_encryption || "tls",
+        fromEmail: emailSettings.smtp_from_email || "",
+        fromName: emailSettings.smtp_from_name || "",
+      });
+      setIpConfig({
+        dedicatedIp: emailSettings.use_dedicated_ip || false,
+        warmupEnabled: emailSettings.enable_ip_warmup || false,
+        warmupDailyLimit: String(emailSettings.daily_warmup_limit || 100),
+        ipPoolName: emailSettings.ip_pool || "",
+      });
+      setEmailConfigStatus("configured");
+    }
+  }, [emailSettings]);
+
+  // Set up realtime subscription for email_settings
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('email_settings_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'email_settings',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Email settings changed:', payload);
+          queryClient.invalidateQueries({ queryKey: ["email_settings", user.id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, queryClient]);
 
   const testEmailConnection = async () => {
     setEmailConfigStatus("testing");
-    // Simulate testing connection
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setEmailConfigStatus("configured");
-    toast({ title: "Email configuration verified successfully!" });
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("send-email", {
+        body: {
+          to: user?.email || "test@example.com",
+          subject: "Test Email - Configuration Verified",
+          html: "<h1>Email Configuration Test</h1><p>Your email settings are working correctly!</p>",
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.success) {
+        setEmailConfigStatus("configured");
+        toast({ title: "Email configuration verified!", description: "Test email sent successfully." });
+      } else {
+        setEmailConfigStatus("unconfigured");
+        toast({ title: "Configuration test failed", description: data.error, variant: "destructive" });
+      }
+    } catch (error: any) {
+      setEmailConfigStatus("unconfigured");
+      toast({ 
+        title: "Configuration test failed", 
+        description: error.message || "Failed to test email configuration", 
+        variant: "destructive" 
+      });
+    }
   };
 
-  const saveEmailConfig = () => {
-    toast({ title: "Email configuration saved", description: "Your email sending settings have been updated." });
+  const saveEmailConfig = async () => {
+    if (!user?.id) return;
+    
+    setIsSavingEmailConfig(true);
+    
+    try {
+      const settingsData = {
+        user_id: user.id,
+        provider_type: emailProvider,
+        api_provider: apiConfig.provider,
+        api_key: apiConfig.apiKey,
+        api_from_email: apiConfig.fromEmail,
+        api_from_name: apiConfig.fromName,
+        smtp_host: smtpConfig.host,
+        smtp_port: parseInt(smtpConfig.port),
+        smtp_username: smtpConfig.username,
+        smtp_password: smtpConfig.password,
+        smtp_encryption: smtpConfig.encryption,
+        smtp_from_email: smtpConfig.fromEmail,
+        smtp_from_name: smtpConfig.fromName,
+        use_dedicated_ip: ipConfig.dedicatedIp,
+        ip_pool: ipConfig.ipPoolName,
+        enable_ip_warmup: ipConfig.warmupEnabled,
+        daily_warmup_limit: parseInt(ipConfig.warmupDailyLimit),
+      };
+
+      const { error } = await supabase
+        .from("email_settings")
+        .upsert(settingsData, { onConflict: "user_id" });
+
+      if (error) throw error;
+
+      setEmailConfigStatus("configured");
+      toast({ title: "Email configuration saved", description: "Your email sending settings have been updated." });
+      queryClient.invalidateQueries({ queryKey: ["email_settings", user.id] });
+    } catch (error: any) {
+      toast({ 
+        title: "Error saving configuration", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsSavingEmailConfig(false);
+    }
   };
 
   // Update form when profile loads
-  useState(() => {
+  useEffect(() => {
     if (profile) {
       setFormData({
         full_name: profile.full_name || "",
         email: profile.email || user?.email || "",
       });
     }
-  });
+  }, [profile, user?.email]);
 
   const updateProfile = useMutation({
     mutationFn: async (data: { full_name: string }) => {
@@ -173,7 +313,7 @@ const Settings = () => {
     </motion.div>
   );
 
-  if (isLoading) {
+  if (isLoading || emailSettingsLoading) {
     return (
       <AppLayout title="Settings" description="Manage your account preferences">
         <div className="flex items-center justify-center py-12">
@@ -511,25 +651,29 @@ const Settings = () => {
                 <h4 className="font-medium">IP Configuration</h4>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="dedicated-ip">Dedicated IP Address</Label>
-                  <Input
-                    id="dedicated-ip"
-                    placeholder="192.168.1.1 (optional)"
-                    value={ipConfig.dedicatedIp}
-                    onChange={(e) => setIpConfig({ ...ipConfig, dedicatedIp: e.target.value })}
-                  />
+              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                <div>
+                  <p className="font-medium">Use Dedicated IP</p>
+                  <p className="text-sm text-muted-foreground">
+                    Send emails from a dedicated IP address
+                  </p>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="ip-pool">IP Pool Name</Label>
-                  <Input
-                    id="ip-pool"
-                    placeholder="default (optional)"
-                    value={ipConfig.ipPoolName}
-                    onChange={(e) => setIpConfig({ ...ipConfig, ipPoolName: e.target.value })}
-                  />
-                </div>
+                <Switch
+                  checked={ipConfig.dedicatedIp}
+                  onCheckedChange={(checked) =>
+                    setIpConfig({ ...ipConfig, dedicatedIp: checked })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ip-pool">IP Pool Name</Label>
+                <Input
+                  id="ip-pool"
+                  placeholder="default (optional)"
+                  value={ipConfig.ipPoolName}
+                  onChange={(e) => setIpConfig({ ...ipConfig, ipPoolName: e.target.value })}
+                />
               </div>
 
               <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
@@ -576,7 +720,7 @@ const Settings = () => {
               <Button
                 variant="outline"
                 onClick={testEmailConnection}
-                disabled={emailConfigStatus === "testing"}
+                disabled={emailConfigStatus === "testing" || !apiConfig.apiKey}
                 className="gap-2"
               >
                 {emailConfigStatus === "testing" ? (
@@ -589,9 +733,14 @@ const Settings = () => {
               <Button
                 variant="hero"
                 onClick={saveEmailConfig}
+                disabled={isSavingEmailConfig}
                 className="gap-2"
               >
-                <Save className="w-4 h-4" />
+                {isSavingEmailConfig ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
                 Save Configuration
               </Button>
             </div>
