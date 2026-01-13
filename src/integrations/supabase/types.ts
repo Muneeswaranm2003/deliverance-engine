@@ -302,6 +302,75 @@ export type Database = {
           },
         ]
       }
+      email_settings: {
+        Row: {
+          api_from_email: string | null
+          api_from_name: string | null
+          api_key: string | null
+          api_provider: string | null
+          created_at: string
+          daily_warmup_limit: number | null
+          enable_ip_warmup: boolean | null
+          id: string
+          ip_pool: string | null
+          provider_type: string
+          smtp_encryption: string | null
+          smtp_from_email: string | null
+          smtp_from_name: string | null
+          smtp_host: string | null
+          smtp_password: string | null
+          smtp_port: number | null
+          smtp_username: string | null
+          updated_at: string
+          use_dedicated_ip: boolean | null
+          user_id: string
+        }
+        Insert: {
+          api_from_email?: string | null
+          api_from_name?: string | null
+          api_key?: string | null
+          api_provider?: string | null
+          created_at?: string
+          daily_warmup_limit?: number | null
+          enable_ip_warmup?: boolean | null
+          id?: string
+          ip_pool?: string | null
+          provider_type?: string
+          smtp_encryption?: string | null
+          smtp_from_email?: string | null
+          smtp_from_name?: string | null
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_username?: string | null
+          updated_at?: string
+          use_dedicated_ip?: boolean | null
+          user_id: string
+        }
+        Update: {
+          api_from_email?: string | null
+          api_from_name?: string | null
+          api_key?: string | null
+          api_provider?: string | null
+          created_at?: string
+          daily_warmup_limit?: number | null
+          enable_ip_warmup?: boolean | null
+          id?: string
+          ip_pool?: string | null
+          provider_type?: string
+          smtp_encryption?: string | null
+          smtp_from_email?: string | null
+          smtp_from_name?: string | null
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_username?: string | null
+          updated_at?: string
+          use_dedicated_ip?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
