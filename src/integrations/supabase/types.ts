@@ -245,10 +245,74 @@ export type Database = {
         }
         Relationships: []
       }
+      email_events: {
+        Row: {
+          bounce_reason: string | null
+          bounce_type: string | null
+          campaign_id: string | null
+          complaint_type: string | null
+          created_at: string
+          email: string
+          email_log_id: string | null
+          event_type: string
+          id: string
+          payload: Json | null
+          provider: string
+          provider_event_id: string | null
+        }
+        Insert: {
+          bounce_reason?: string | null
+          bounce_type?: string | null
+          campaign_id?: string | null
+          complaint_type?: string | null
+          created_at?: string
+          email: string
+          email_log_id?: string | null
+          event_type: string
+          id?: string
+          payload?: Json | null
+          provider?: string
+          provider_event_id?: string | null
+        }
+        Update: {
+          bounce_reason?: string | null
+          bounce_type?: string | null
+          campaign_id?: string | null
+          complaint_type?: string | null
+          created_at?: string
+          email?: string
+          email_log_id?: string | null
+          event_type?: string
+          id?: string
+          payload?: Json | null
+          provider?: string
+          provider_event_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_events_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_events_email_log_id_fkey"
+            columns: ["email_log_id"]
+            isOneToOne: false
+            referencedRelation: "email_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_logs: {
         Row: {
+          bounce_type: string | null
+          bounced_at: string | null
           campaign_id: string
           clicked_at: string | null
+          complaint_at: string | null
+          complaint_type: string | null
           created_at: string
           delivered_at: string | null
           email: string
@@ -260,8 +324,12 @@ export type Database = {
           status: Database["public"]["Enums"]["email_status"]
         }
         Insert: {
+          bounce_type?: string | null
+          bounced_at?: string | null
           campaign_id: string
           clicked_at?: string | null
+          complaint_at?: string | null
+          complaint_type?: string | null
           created_at?: string
           delivered_at?: string | null
           email: string
@@ -273,8 +341,12 @@ export type Database = {
           status?: Database["public"]["Enums"]["email_status"]
         }
         Update: {
+          bounce_type?: string | null
+          bounced_at?: string | null
           campaign_id?: string
           clicked_at?: string | null
+          complaint_at?: string | null
+          complaint_type?: string | null
           created_at?: string
           delivered_at?: string | null
           email?: string
