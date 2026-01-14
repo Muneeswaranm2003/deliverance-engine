@@ -14,6 +14,7 @@ import {
   FileText,
   Link2,
   Activity,
+  Ban,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -21,6 +22,7 @@ const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Campaigns", href: "/campaigns", icon: Send },
   { label: "Contacts", href: "/contacts", icon: Users },
+  { label: "Suppression List", href: "/suppression-list", icon: Ban },
   { label: "Automations", href: "/automations", icon: Zap },
   { label: "Automation Logs", href: "/automations/logs", icon: Activity },
   { label: "Templates", href: "/templates", icon: FileText },
