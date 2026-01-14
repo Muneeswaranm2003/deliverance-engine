@@ -220,6 +220,9 @@ export type Database = {
           first_name: string | null
           id: string
           last_name: string | null
+          suppressed: boolean | null
+          suppressed_at: string | null
+          suppression_reason: string | null
           updated_at: string
           user_id: string
         }
@@ -230,6 +233,9 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          suppressed?: boolean | null
+          suppressed_at?: string | null
+          suppression_reason?: string | null
           updated_at?: string
           user_id: string
         }
@@ -240,6 +246,9 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          suppressed?: boolean | null
+          suppressed_at?: string | null
+          suppression_reason?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -466,6 +475,56 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      suppression_list: {
+        Row: {
+          bounce_type: string | null
+          complaint_type: string | null
+          created_at: string
+          email: string
+          id: string
+          notes: string | null
+          reason: string
+          source_campaign_id: string | null
+          source_event_id: string | null
+          suppressed_at: string
+          user_id: string
+        }
+        Insert: {
+          bounce_type?: string | null
+          complaint_type?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          notes?: string | null
+          reason: string
+          source_campaign_id?: string | null
+          source_event_id?: string | null
+          suppressed_at?: string
+          user_id: string
+        }
+        Update: {
+          bounce_type?: string | null
+          complaint_type?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          notes?: string | null
+          reason?: string
+          source_campaign_id?: string | null
+          source_event_id?: string | null
+          suppressed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppression_list_source_campaign_id_fkey"
+            columns: ["source_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       webhook_events: {
         Row: {

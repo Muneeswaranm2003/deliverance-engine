@@ -155,9 +155,18 @@ const handler = async (req: Request): Promise<Response> => {
             })
             .eq("id", emailLog.id);
 
-          // For hard bounces, we might want to mark the contact as invalid
+          // Auto-suppress on hard bounce
           if (emailData.bounce?.type === "hard" && effectiveCampaignId) {
-            console.log(`Hard bounce detected for ${recipientEmail} - consider marking contact as invalid`);
+            await suppressContact(
+              supabase,
+              effectiveCampaignId,
+              recipientEmail,
+              "hard_bounce",
+              emailData.bounce?.type,
+              null,
+              insertedEvent?.id,
+              emailData.bounce?.message
+            );
           }
           break;
 
@@ -172,7 +181,19 @@ const handler = async (req: Request): Promise<Response> => {
             })
             .eq("id", emailLog.id);
 
-          console.log(`Spam complaint received for ${recipientEmail} - should be unsubscribed`);
+          // Auto-suppress on spam complaint
+          if (effectiveCampaignId) {
+            await suppressContact(
+              supabase,
+              effectiveCampaignId,
+              recipientEmail,
+              "complaint",
+              null,
+              emailData.complaint?.type || null,
+              insertedEvent?.id,
+              "Recipient marked email as spam"
+            );
+          }
           break;
 
         case "email.delivery_delayed":
@@ -190,12 +211,75 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ success: true, event_id: insertedEvent?.id }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Email webhook error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
+  }
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function suppressContact(
+  supabase: any,
+  campaignId: string,
+  email: string,
+  reason: "hard_bounce" | "soft_bounce" | "complaint" | "unsubscribe" | "manual",
+  bounceType: string | null,
+  complaintType: string | null,
+  sourceEventId: string | undefined | null,
+  notes: string | undefined | null
+) {
+  try {
+    // Get campaign owner
+    const { data: campaign } = await supabase
+      .from("campaigns")
+      .select("user_id")
+      .eq("id", campaignId)
+      .single();
+
+    if (!campaign) {
+      console.error("Campaign not found for suppression");
+      return;
+    }
+
+    // Add to suppression list (upsert to avoid duplicates)
+    const { error: suppressError } = await supabase
+      .from("suppression_list")
+      .upsert({
+        user_id: campaign.user_id,
+        email: email.toLowerCase(),
+        reason,
+        source_campaign_id: campaignId,
+        source_event_id: sourceEventId,
+        bounce_type: bounceType,
+        complaint_type: complaintType,
+        notes,
+        suppressed_at: new Date().toISOString(),
+      }, { onConflict: "user_id,email" });
+
+    if (suppressError) {
+      console.error("Error adding to suppression list:", suppressError);
+      return;
+    }
+
+    console.log(`Contact ${email} suppressed: ${reason}`);
+
+    // Also update the contact if it exists
+    await supabase
+      .from("contacts")
+      .update({
+        suppressed: true,
+        suppressed_at: new Date().toISOString(),
+        suppression_reason: reason,
+      })
+      .eq("user_id", campaign.user_id)
+      .eq("email", email.toLowerCase());
+
+  } catch (error) {
+    console.error("Error in suppressContact:", error);
   }
 };
 

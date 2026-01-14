@@ -126,6 +126,36 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const emailRequest: EmailRequest = await req.json();
+    const recipientEmails = Array.isArray(emailRequest.to) ? emailRequest.to : [emailRequest.to];
+
+    // Check suppression list for each recipient
+    const { data: suppressedEmails } = await supabase
+      .from("suppression_list")
+      .select("email")
+      .eq("user_id", user.id)
+      .in("email", recipientEmails.map(e => e.toLowerCase()));
+
+    const suppressedSet = new Set((suppressedEmails || []).map(s => s.email.toLowerCase()));
+    const validRecipients = recipientEmails.filter(e => !suppressedSet.has(e.toLowerCase()));
+    const skippedRecipients = recipientEmails.filter(e => suppressedSet.has(e.toLowerCase()));
+
+    if (skippedRecipients.length > 0) {
+      console.log(`Skipping suppressed recipients: ${skippedRecipients.join(", ")}`);
+    }
+
+    if (validRecipients.length === 0) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "All recipients are suppressed",
+          suppressed: skippedRecipients 
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Update email request with valid recipients only
+    emailRequest.to = validRecipients;
 
     // Fetch user's email settings
     const { data: settings, error: settingsError } = await supabase

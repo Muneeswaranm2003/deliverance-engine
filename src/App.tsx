@@ -17,6 +17,7 @@ import AutomationLogs from "./pages/AutomationLogs";
 import Templates from "./pages/Templates";
 import Integrations from "./pages/Integrations";
 import Settings from "./pages/Settings";
+import SuppressionList from "./pages/SuppressionList";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -108,6 +109,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Integrations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/suppression-list"
+              element={
+                <ProtectedRoute>
+                  <SuppressionList />
                 </ProtectedRoute>
               }
             />
