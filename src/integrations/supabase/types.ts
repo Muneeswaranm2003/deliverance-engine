@@ -217,9 +217,15 @@ export type Database = {
           company: string | null
           created_at: string
           email: string
+          engagement_score: number | null
           first_name: string | null
           id: string
+          inactive_since: string | null
+          last_engaged_at: string | null
           last_name: string | null
+          last_reengagement_at: string | null
+          reengagement_attempts: number | null
+          status: string | null
           suppressed: boolean | null
           suppressed_at: string | null
           suppression_reason: string | null
@@ -230,9 +236,15 @@ export type Database = {
           company?: string | null
           created_at?: string
           email: string
+          engagement_score?: number | null
           first_name?: string | null
           id?: string
+          inactive_since?: string | null
+          last_engaged_at?: string | null
           last_name?: string | null
+          last_reengagement_at?: string | null
+          reengagement_attempts?: number | null
+          status?: string | null
           suppressed?: boolean | null
           suppressed_at?: string | null
           suppression_reason?: string | null
@@ -243,9 +255,15 @@ export type Database = {
           company?: string | null
           created_at?: string
           email?: string
+          engagement_score?: number | null
           first_name?: string | null
           id?: string
+          inactive_since?: string | null
+          last_engaged_at?: string | null
           last_name?: string | null
+          last_reengagement_at?: string | null
+          reengagement_attempts?: number | null
+          status?: string | null
           suppressed?: boolean | null
           suppressed_at?: string | null
           suppression_reason?: string | null
@@ -475,6 +493,63 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      re_engagement_campaigns: {
+        Row: {
+          attempt_number: number
+          campaign_id: string | null
+          clicked_at: string | null
+          contact_id: string
+          created_at: string
+          id: string
+          opened_at: string | null
+          sent_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempt_number?: number
+          campaign_id?: string | null
+          clicked_at?: string | null
+          contact_id: string
+          created_at?: string
+          id?: string
+          opened_at?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempt_number?: number
+          campaign_id?: string | null
+          clicked_at?: string | null
+          contact_id?: string
+          created_at?: string
+          id?: string
+          opened_at?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "re_engagement_campaigns_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "re_engagement_campaigns_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       suppression_list: {
         Row: {

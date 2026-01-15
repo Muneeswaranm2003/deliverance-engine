@@ -135,6 +135,8 @@ const handler = async (req: Request): Promise<Response> => {
             .from("email_logs")
             .update({ status: "opened", opened_at: now })
             .eq("id", emailLog.id);
+          // Update contact engagement
+          await updateContactEngagement(supabase, effectiveCampaignId, recipientEmail);
           break;
 
         case "email.clicked":
@@ -142,6 +144,8 @@ const handler = async (req: Request): Promise<Response> => {
             .from("email_logs")
             .update({ status: "clicked", clicked_at: now })
             .eq("id", emailLog.id);
+          // Update contact engagement
+          await updateContactEngagement(supabase, effectiveCampaignId, recipientEmail);
           break;
 
         case "email.bounced":
@@ -282,6 +286,64 @@ async function suppressContact(
     console.error("Error in suppressContact:", error);
   }
 };
+
+// Update contact engagement when they interact with emails
+async function updateContactEngagement(
+  supabase: any,
+  campaignId: string | null | undefined,
+  email: string
+) {
+  if (!campaignId) return;
+
+  try {
+    // Get campaign owner
+    const { data: campaign } = await supabase
+      .from("campaigns")
+      .select("user_id")
+      .eq("id", campaignId)
+      .single();
+
+    if (!campaign) return;
+
+    const now = new Date().toISOString();
+
+    // Update contact's engagement data
+    await supabase
+      .from("contacts")
+      .update({
+        last_engaged_at: now,
+        engagement_score: 100, // Reset to full score on engagement
+        status: "active",
+        inactive_since: null,
+        reengagement_attempts: 0, // Reset re-engagement attempts
+      })
+      .eq("user_id", campaign.user_id)
+      .eq("email", email.toLowerCase());
+
+    // Also update any pending re-engagement campaigns
+    const { data: contact } = await supabase
+      .from("contacts")
+      .select("id")
+      .eq("user_id", campaign.user_id)
+      .eq("email", email.toLowerCase())
+      .single();
+
+    if (contact) {
+      await supabase
+        .from("re_engagement_campaigns")
+        .update({
+          status: "clicked",
+          clicked_at: now
+        })
+        .eq("contact_id", contact.id)
+        .in("status", ["pending", "sent"]);
+    }
+
+    console.log(`Contact engagement updated for ${email}`);
+  } catch (error) {
+    console.error("Error updating contact engagement:", error);
+  }
+}
 
 async function triggerAutomations(
   supabase: any,

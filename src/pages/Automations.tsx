@@ -39,6 +39,7 @@ import {
   Copy,
   ExternalLink,
   RefreshCw,
+  UserX,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -70,14 +71,17 @@ const followupTriggers = [
   { id: "opened_no_click", name: "Opened But No Click", icon: Mail },
   { id: "bounced", name: "Email Bounced", icon: Mail },
   { id: "scheduled", name: "Scheduled Date", icon: Calendar },
+  { id: "inactive", name: "Inactive Subscriber", icon: UserX },
 ];
 
 const actions = [
   { id: "send_email", name: "Send Follow-up Email" },
+  { id: "send_reengagement", name: "Send Re-engagement Email" },
   { id: "add_tag", name: "Add Tag to Contact" },
   { id: "move_list", name: "Move to Another List" },
   { id: "notify", name: "Send Notification" },
   { id: "webhook", name: "Trigger Webhook" },
+  { id: "mark_churned", name: "Mark as Churned" },
 ];
 
 const delayOptions = [
@@ -87,6 +91,10 @@ const delayOptions = [
   { id: "2d", name: "2 days" },
   { id: "3d", name: "3 days" },
   { id: "1w", name: "1 week" },
+  { id: "2w", name: "2 weeks" },
+  { id: "30d", name: "30 days" },
+  { id: "60d", name: "60 days" },
+  { id: "90d", name: "90 days" },
 ];
 
 const Automations = () => {
@@ -95,6 +103,7 @@ const Automations = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isReengaging, setIsReengaging] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"campaign" | "followup">("campaign");
   const [formData, setFormData] = useState({
@@ -108,6 +117,7 @@ const Automations = () => {
 
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webhook-handler`;
   const scheduledUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-scheduled-automations`;
+  const reengagementUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-reengagement`;
 
   const processScheduledAutomations = async () => {
     setIsProcessing(true);
@@ -136,6 +146,34 @@ const Automations = () => {
       });
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const processReengagement = async () => {
+    setIsReengaging(true);
+    try {
+      const response = await fetch(reengagementUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({
+          title: "Re-engagement processed",
+          description: `Processed ${data.contacts_processed} contacts, ${data.newly_inactive} newly inactive, ${data.reengagement_triggered} re-engagement triggered`,
+        });
+      } else {
+        throw new Error(data.error || 'Failed to process');
+      }
+    } catch (error) {
+      console.error('Error processing re-engagement:', error);
+      toast({
+        title: "Error processing re-engagement",
+        variant: "destructive",
+      });
+    } finally {
+      setIsReengaging(false);
     }
   };
 
@@ -509,6 +547,38 @@ const Automations = () => {
                 <RefreshCw className="w-4 h-4 mr-2" />
               )}
               Run Now
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Re-engagement Card */}
+      <Card className="mb-6 border-orange-500/20 bg-orange-500/5">
+        <CardContent className="py-4">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
+                <UserX className="w-5 h-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">Re-engagement Campaigns</p>
+                <p className="text-xs text-muted-foreground">
+                  Automatically reach out to inactive subscribers who haven't engaged in 30+ days
+                </p>
+              </div>
+            </div>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={processReengagement}
+              disabled={isReengaging}
+            >
+              {isReengaging ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              Process Now
             </Button>
           </div>
         </CardContent>
