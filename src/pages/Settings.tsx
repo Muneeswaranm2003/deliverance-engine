@@ -31,8 +31,10 @@ import {
   CheckCircle,
   AlertCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  AtSign
 } from "lucide-react";
+import { SenderDomainsManager } from "@/components/settings/SenderDomainsManager";
 import { toast } from "@/hooks/use-toast";
 
 const Settings = () => {
@@ -745,6 +747,16 @@ const Settings = () => {
               </Button>
             </div>
           </div>
+        </SettingsCard>
+
+        {/* Sender Domains Configuration */}
+        <SettingsCard
+          icon={AtSign}
+          title="Sender Domains"
+          description="Configure up to 5 sender domains in priority order (1, 2, 3...)"
+          delay={0.17}
+        >
+          <SenderDomainsManager />
         </SettingsCard>
 
         {/* Security Settings */}
