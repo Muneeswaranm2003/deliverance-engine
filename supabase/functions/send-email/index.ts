@@ -17,6 +17,8 @@ interface EmailRequest {
   reply_to?: string;
   campaign_id?: string;
   recipient_id?: string;
+  sender_domain_id?: string; // Specific sender domain to use
+  sender_order?: number; // Which sender in the rotation to use
 }
 
 interface EmailSettings {
@@ -156,6 +158,60 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Update email request with valid recipients only
     emailRequest.to = validRecipients;
+
+    // Fetch campaign sender domains if campaign_id provided
+    let campaignSenderDomains: any[] = [];
+    if (emailRequest.campaign_id) {
+      const { data: senderDomains } = await supabase
+        .from("campaign_sender_domains")
+        .select(`
+          send_order,
+          sender_domains!inner (
+            id,
+            from_email,
+            from_name,
+            domain_name
+          )
+        `)
+        .eq("campaign_id", emailRequest.campaign_id)
+        .order("send_order", { ascending: true });
+      
+      campaignSenderDomains = senderDomains || [];
+    }
+
+    // Determine which sender to use based on rotation
+    let selectedSender: { from_email: string; from_name: string } | null = null;
+    
+    if (campaignSenderDomains.length > 0) {
+      // Use sender_order if provided, otherwise default to first
+      const orderIndex = emailRequest.sender_order 
+        ? Math.min(emailRequest.sender_order - 1, campaignSenderDomains.length - 1)
+        : 0;
+      const senderData = campaignSenderDomains[orderIndex];
+      if (senderData?.sender_domains) {
+        selectedSender = {
+          from_email: senderData.sender_domains.from_email,
+          from_name: senderData.sender_domains.from_name,
+        };
+      }
+    } else if (emailRequest.sender_domain_id) {
+      // Fetch specific sender domain
+      const { data: senderDomain } = await supabase
+        .from("sender_domains")
+        .select("from_email, from_name")
+        .eq("id", emailRequest.sender_domain_id)
+        .single();
+      
+      if (senderDomain) {
+        selectedSender = senderDomain;
+      }
+    }
+
+    // Use selected sender or fall back to request/settings
+    if (selectedSender) {
+      emailRequest.from_email = selectedSender.from_email;
+      emailRequest.from_name = selectedSender.from_name;
+    }
 
     // Fetch user's email settings
     const { data: settings, error: settingsError } = await supabase

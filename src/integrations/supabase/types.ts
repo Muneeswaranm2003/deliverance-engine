@@ -152,6 +152,45 @@ export type Database = {
           },
         ]
       }
+      campaign_sender_domains: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          send_order: number
+          sender_domain_id: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          send_order?: number
+          sender_domain_id: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          send_order?: number
+          sender_domain_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_sender_domains_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_sender_domains_sender_domain_id_fkey"
+            columns: ["sender_domain_id"]
+            isOneToOne: false
+            referencedRelation: "sender_domains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           batch_delay: number | null
@@ -550,6 +589,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sender_domains: {
+        Row: {
+          created_at: string
+          display_order: number
+          domain_name: string
+          from_email: string
+          from_name: string
+          id: string
+          is_default: boolean | null
+          is_verified: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          domain_name: string
+          from_email: string
+          from_name: string
+          id?: string
+          is_default?: boolean | null
+          is_verified?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          domain_name?: string
+          from_email?: string
+          from_name?: string
+          id?: string
+          is_default?: boolean | null
+          is_verified?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       suppression_list: {
         Row: {
