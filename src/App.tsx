@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Campaigns from "./pages/Campaigns";
 import CampaignCreate from "./pages/CampaignCreate";
 import CampaignEdit from "./pages/CampaignEdit";
+import CampaignDetail from "./pages/CampaignDetail";
 import Contacts from "./pages/Contacts";
 import Automations from "./pages/Automations";
 import AutomationLogs from "./pages/AutomationLogs";
@@ -18,6 +19,7 @@ import Templates from "./pages/Templates";
 import Integrations from "./pages/Integrations";
 import Settings from "./pages/Settings";
 import SuppressionList from "./pages/SuppressionList";
+import ListSegmentation from "./pages/ListSegmentation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -61,6 +63,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <CampaignEdit />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/campaigns/:id"
+              element={
+                <ProtectedRoute>
+                  <CampaignDetail />
                 </ProtectedRoute>
               }
             />
@@ -117,6 +127,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <SuppressionList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/segmentation"
+              element={
+                <ProtectedRoute>
+                  <ListSegmentation />
                 </ProtectedRoute>
               }
             />

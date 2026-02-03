@@ -15,12 +15,14 @@ import {
   Link2,
   Activity,
   Ban,
+  ListFilter,
 } from "lucide-react";
 import { useState } from "react";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Campaigns", href: "/campaigns", icon: Send },
+  { label: "List Segmentation", href: "/segmentation", icon: ListFilter },
   { label: "Contacts", href: "/contacts", icon: Users },
   { label: "Suppression List", href: "/suppression-list", icon: Ban },
   { label: "Automations", href: "/automations", icon: Zap },
