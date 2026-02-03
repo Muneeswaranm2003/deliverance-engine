@@ -509,6 +509,39 @@ export type Database = {
         }
         Relationships: []
       }
+      list_segments: {
+        Row: {
+          contact_count: number | null
+          created_at: string
+          description: string | null
+          filters: Json
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          contact_count?: number | null
+          created_at?: string
+          description?: string | null
+          filters?: Json
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          contact_count?: number | null
+          created_at?: string
+          description?: string | null
+          filters?: Json
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

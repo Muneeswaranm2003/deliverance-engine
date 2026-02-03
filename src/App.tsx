@@ -11,7 +11,6 @@ import Dashboard from "./pages/Dashboard";
 import Campaigns from "./pages/Campaigns";
 import CampaignCreate from "./pages/CampaignCreate";
 import CampaignEdit from "./pages/CampaignEdit";
-import CampaignDetail from "./pages/CampaignDetail";
 import Contacts from "./pages/Contacts";
 import Automations from "./pages/Automations";
 import AutomationLogs from "./pages/AutomationLogs";
@@ -63,14 +62,6 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <CampaignEdit />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/campaigns/:id"
-              element={
-                <ProtectedRoute>
-                  <CampaignDetail />
                 </ProtectedRoute>
               }
             />
