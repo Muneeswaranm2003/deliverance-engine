@@ -1,11 +1,13 @@
-import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -13,243 +15,540 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import {
-  Send,
+  Plus,
   Users,
-  Mail,
-  CheckCircle2,
-  Clock,
-  Calendar,
+  Filter,
+  Save,
+  Trash2,
   Search,
-  ArrowRight,
   Loader2,
-  BarChart3,
+  ListFilter,
   Eye,
-  MousePointer,
+  X,
 } from "lucide-react";
-import { useState } from "react";
 import type { Tables } from "@/integrations/supabase/types";
 
-type Campaign = Tables<"campaigns">;
+type Contact = Tables<"contacts">;
+
+interface SegmentFilters {
+  status?: string;
+  engagement?: string;
+  company?: string;
+  suppressed?: string;
+  searchQuery?: string;
+}
+
+interface ListSegment {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  filters: SegmentFilters;
+  contact_count: number;
+  created_at: string;
+  updated_at: string;
+}
 
 const ListSegmentation = () => {
-  const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [selectedSegment, setSelectedSegment] = useState<ListSegment | null>(null);
+  
+  // Filter state for creating new segment
+  const [filters, setFilters] = useState<SegmentFilters>({});
+  const [segmentName, setSegmentName] = useState("");
+  const [segmentDescription, setSegmentDescription] = useState("");
 
-  const { data: campaigns, isLoading } = useQuery({
-    queryKey: ["campaigns-segmentation"],
+  // Fetch saved segments
+  const { data: segments, isLoading: segmentsLoading } = useQuery({
+    queryKey: ["list-segments"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("campaigns")
+        .from("list_segments")
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as Campaign[];
+      return data as ListSegment[];
     },
   });
 
-  const { data: campaignStats } = useQuery({
-    queryKey: ["campaigns-stats"],
+  // Fetch all contacts for filtering
+  const { data: allContacts } = useQuery({
+    queryKey: ["all-contacts"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("email_logs")
-        .select("campaign_id, status, opened_at, clicked_at");
+        .from("contacts")
+        .select("*")
+        .order("created_at", { ascending: false });
       if (error) throw error;
-      
-      const statsMap: Record<string, { sent: number; delivered: number; opened: number; clicked: number }> = {};
-      
-      data?.forEach((log) => {
-        if (!log.campaign_id) return;
-        if (!statsMap[log.campaign_id]) {
-          statsMap[log.campaign_id] = { sent: 0, delivered: 0, opened: 0, clicked: 0 };
-        }
-        if (log.status === "sent" || log.status === "delivered" || log.status === "opened" || log.status === "clicked") {
-          statsMap[log.campaign_id].sent++;
-        }
-        if (log.status === "delivered" || log.status === "opened" || log.status === "clicked") {
-          statsMap[log.campaign_id].delivered++;
-        }
-        if (log.opened_at) {
-          statsMap[log.campaign_id].opened++;
-        }
-        if (log.clicked_at) {
-          statsMap[log.campaign_id].clicked++;
-        }
-      });
-      
-      return statsMap;
+      return data as Contact[];
     },
   });
 
-  const filteredCampaigns = campaigns?.filter((campaign) => {
-    const matchesSearch =
-      campaign.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      campaign.subject.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || campaign.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  // Get unique companies for filter dropdown
+  const companies = [...new Set(allContacts?.map((c) => c.company).filter(Boolean) || [])];
 
-  const getStatusIcon = (status: Campaign["status"]) => {
-    switch (status) {
-      case "sent":
-        return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
-      case "scheduled":
-        return <Calendar className="w-4 h-4 text-primary" />;
-      case "sending":
-        return <Send className="w-4 h-4 text-blue-400 animate-pulse" />;
-      default:
-        return <Clock className="w-4 h-4 text-muted-foreground" />;
-    }
+  // Apply filters to contacts
+  const applyFilters = (contacts: Contact[] | undefined, filterSet: SegmentFilters): Contact[] => {
+    if (!contacts) return [];
+    
+    return contacts.filter((contact) => {
+      if (filterSet.status && filterSet.status !== "all" && contact.status !== filterSet.status) {
+        return false;
+      }
+      if (filterSet.engagement && filterSet.engagement !== "all") {
+        const score = contact.engagement_score || 0;
+        if (filterSet.engagement === "high" && score < 70) return false;
+        if (filterSet.engagement === "medium" && (score < 40 || score >= 70)) return false;
+        if (filterSet.engagement === "low" && score >= 40) return false;
+      }
+      if (filterSet.company && filterSet.company !== "all" && contact.company !== filterSet.company) {
+        return false;
+      }
+      if (filterSet.suppressed && filterSet.suppressed !== "all") {
+        if (filterSet.suppressed === "yes" && !contact.suppressed) return false;
+        if (filterSet.suppressed === "no" && contact.suppressed) return false;
+      }
+      if (filterSet.searchQuery) {
+        const query = filterSet.searchQuery.toLowerCase();
+        const matchesSearch =
+          contact.email.toLowerCase().includes(query) ||
+          contact.first_name?.toLowerCase().includes(query) ||
+          contact.last_name?.toLowerCase().includes(query) ||
+          contact.company?.toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+      }
+      return true;
+    });
   };
 
-  const getStatusColor = (status: Campaign["status"]) => {
-    switch (status) {
-      case "sent":
-        return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
-      case "scheduled":
-        return "bg-primary/10 text-primary border-primary/20";
-      case "sending":
-        return "bg-blue-500/10 text-blue-500 border-blue-500/20";
-      case "paused":
-        return "bg-amber-500/10 text-amber-500 border-amber-500/20";
-      case "cancelled":
-        return "bg-destructive/10 text-destructive border-destructive/20";
-      default:
-        return "bg-muted text-muted-foreground";
-    }
+  const filteredContacts = applyFilters(allContacts, filters);
+  const previewContacts = selectedSegment 
+    ? applyFilters(allContacts, selectedSegment.filters as SegmentFilters)
+    : [];
+
+  // Create segment mutation
+  const createSegment = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Not authenticated");
+      if (!segmentName.trim()) throw new Error("Segment name is required");
+
+      const { error } = await supabase.from("list_segments").insert([{
+        user_id: user.id,
+        name: segmentName.trim(),
+        description: segmentDescription.trim() || null,
+        filters: JSON.parse(JSON.stringify(filters)),
+        contact_count: filteredContacts.length,
+      }]);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["list-segments"] });
+      toast.success("Segment created successfully");
+      setIsCreateOpen(false);
+      resetForm();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to create segment");
+    },
+  });
+
+  // Delete segment mutation
+  const deleteSegment = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("list_segments").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["list-segments"] });
+      toast.success("Segment deleted");
+    },
+    onError: () => {
+      toast.error("Failed to delete segment");
+    },
+  });
+
+  const resetForm = () => {
+    setFilters({});
+    setSegmentName("");
+    setSegmentDescription("");
+  };
+
+  const getFilterSummary = (filterSet: SegmentFilters): string => {
+    const parts: string[] = [];
+    if (filterSet.status && filterSet.status !== "all") parts.push(`Status: ${filterSet.status}`);
+    if (filterSet.engagement && filterSet.engagement !== "all") parts.push(`Engagement: ${filterSet.engagement}`);
+    if (filterSet.company && filterSet.company !== "all") parts.push(`Company: ${filterSet.company}`);
+    if (filterSet.suppressed && filterSet.suppressed !== "all") parts.push(`Suppressed: ${filterSet.suppressed}`);
+    if (filterSet.searchQuery) parts.push(`Search: "${filterSet.searchQuery}"`);
+    return parts.length > 0 ? parts.join(" • ") : "All contacts";
   };
 
   return (
     <AppLayout
       title="List Segmentation"
-      description="View individual campaign data and recipient segments"
-    >
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search campaigns..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="draft">Draft</SelectItem>
-            <SelectItem value="scheduled">Scheduled</SelectItem>
-            <SelectItem value="sending">Sending</SelectItem>
-            <SelectItem value="sent">Sent</SelectItem>
-            <SelectItem value="paused">Paused</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      description="Create and manage contact segments for targeted campaigns"
+      action={
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogTrigger asChild>
+            <Button variant="hero" className="gap-2">
+              <Plus className="w-4 h-4" />
+              Create Segment
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create New Segment</DialogTitle>
+              <DialogDescription>
+                Filter your contacts and save as a reusable segment
+              </DialogDescription>
+            </DialogHeader>
 
-      {/* Campaign Cards */}
-      {isLoading ? (
+            <div className="space-y-6 py-4">
+              {/* Segment Info */}
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Segment Name *</Label>
+                  <Input
+                    id="name"
+                    placeholder="e.g., High Engagement Users"
+                    value={segmentName}
+                    onChange={(e) => setSegmentName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Describe this segment..."
+                    value={segmentDescription}
+                    onChange={(e) => setSegmentDescription(e.target.value)}
+                    rows={2}
+                  />
+                </div>
+              </div>
+
+              {/* Filters */}
+              <div className="space-y-4">
+                <h4 className="font-medium flex items-center gap-2">
+                  <Filter className="w-4 h-4" />
+                  Filter Criteria
+                </h4>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Status</Label>
+                    <Select
+                      value={filters.status || "all"}
+                      onValueChange={(v) => setFilters({ ...filters, status: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All statuses" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                        <SelectItem value="churned">Churned</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Engagement Level</Label>
+                    <Select
+                      value={filters.engagement || "all"}
+                      onValueChange={(v) => setFilters({ ...filters, engagement: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All levels" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Levels</SelectItem>
+                        <SelectItem value="high">High (70+)</SelectItem>
+                        <SelectItem value="medium">Medium (40-69)</SelectItem>
+                        <SelectItem value="low">Low (&lt;40)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Company</Label>
+                    <Select
+                      value={filters.company || "all"}
+                      onValueChange={(v) => setFilters({ ...filters, company: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All companies" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Companies</SelectItem>
+                        {companies.map((company) => (
+                          <SelectItem key={company} value={company!}>
+                            {company}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Suppressed</Label>
+                    <Select
+                      value={filters.suppressed || "all"}
+                      onValueChange={(v) => setFilters({ ...filters, suppressed: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="no">Not Suppressed</SelectItem>
+                        <SelectItem value="yes">Suppressed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Search</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by email, name, or company..."
+                      value={filters.searchQuery || ""}
+                      onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value })}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Preview */}
+              <Card className="bg-secondary/30">
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-5 h-5 text-primary" />
+                      <span className="font-medium">
+                        {filteredContacts.length} contacts match
+                      </span>
+                    </div>
+                    <Badge variant="secondary">{getFilterSummary(filters)}</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => createSegment.mutate()}
+                  disabled={!segmentName.trim() || createSegment.isPending}
+                  className="gap-2"
+                >
+                  {createSegment.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  Save Segment
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      }
+    >
+      {/* Saved Segments */}
+      {segmentsLoading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
-      ) : !filteredCampaigns || filteredCampaigns.length === 0 ? (
+      ) : !segments || segments.length === 0 ? (
         <Card className="glass">
           <CardContent className="py-12 text-center">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
-              <BarChart3 className="w-8 h-8 text-primary" />
+              <ListFilter className="w-8 h-8 text-primary" />
             </div>
-            <h3 className="font-display text-xl font-semibold mb-2">No campaigns found</h3>
+            <h3 className="font-display text-xl font-semibold mb-2">No segments yet</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              {searchQuery || statusFilter !== "all"
-                ? "Try adjusting your search or filter criteria"
-                : "Create your first campaign to see segmentation data here"}
+              Create your first segment to organize contacts for targeted campaigns
             </p>
-            <Button variant="hero" onClick={() => navigate("/campaigns/new")}>
-              Create Campaign
+            <Button variant="hero" onClick={() => setIsCreateOpen(true)} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Create Your First Segment
             </Button>
           </CardContent>
         </Card>
       ) : (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredCampaigns.map((campaign, index) => {
-            const stats = campaignStats?.[campaign.id] || { sent: 0, delivered: 0, opened: 0, clicked: 0 };
-            const openRate = stats.sent > 0 ? ((stats.opened / stats.sent) * 100).toFixed(1) : "0";
-            const clickRate = stats.sent > 0 ? ((stats.clicked / stats.sent) * 100).toFixed(1) : "0";
-
-            return (
-              <motion.div
-                key={campaign.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Card
-                  className="glass hover:border-primary/30 transition-all cursor-pointer group"
-                  onClick={() => navigate(`/campaigns/${campaign.id}`)}
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <Send className="w-5 h-5 text-primary" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold line-clamp-1">{campaign.name}</h3>
-                          <p className="text-sm text-muted-foreground line-clamp-1">
-                            {campaign.subject}
-                          </p>
-                        </div>
-                      </div>
-                      <ArrowRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+          {segments.map((segment, index) => (
+            <motion.div
+              key={segment.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+            >
+              <Card className="glass hover:border-primary/30 transition-all">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg">{segment.name}</CardTitle>
+                      {segment.description && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {segment.description}
+                        </p>
+                      )}
                     </div>
-
-                    <div className="flex items-center gap-2 mb-4">
-                      <Badge variant="secondary" className={`gap-1.5 ${getStatusColor(campaign.status)}`}>
-                        {getStatusIcon(campaign.status)}
-                        {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {format(new Date(campaign.created_at), "MMM d, yyyy")}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => deleteSegment.mutate(segment.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-primary" />
+                      <span className="font-display text-2xl font-bold">
+                        {segment.contact_count}
                       </span>
+                      <span className="text-sm text-muted-foreground">contacts</span>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
-                      <div className="text-center">
-                        <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
-                          <Users className="w-3.5 h-3.5" />
-                        </div>
-                        <p className="font-display text-lg font-bold">{campaign.total_recipients || 0}</p>
-                        <p className="text-xs text-muted-foreground">Recipients</p>
-                      </div>
-                      <div className="text-center">
-                        <div className="flex items-center justify-center gap-1 text-violet-400 mb-1">
-                          <Eye className="w-3.5 h-3.5" />
-                        </div>
-                        <p className="font-display text-lg font-bold">{openRate}%</p>
-                        <p className="text-xs text-muted-foreground">Open Rate</p>
-                      </div>
-                      <div className="text-center">
-                        <div className="flex items-center justify-center gap-1 text-primary mb-1">
-                          <MousePointer className="w-3.5 h-3.5" />
-                        </div>
-                        <p className="font-display text-lg font-bold">{clickRate}%</p>
-                        <p className="text-xs text-muted-foreground">Click Rate</p>
-                      </div>
+                    <div className="flex flex-wrap gap-1">
+                      {Object.entries(segment.filters as SegmentFilters).map(([key, value]) => {
+                        if (!value || value === "all") return null;
+                        return (
+                          <Badge key={key} variant="secondary" className="text-xs">
+                            {key}: {value}
+                          </Badge>
+                        );
+                      })}
                     </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
+
+                    <p className="text-xs text-muted-foreground">
+                      Created {format(new Date(segment.created_at), "MMM d, yyyy")}
+                    </p>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-2"
+                      onClick={() => {
+                        setSelectedSegment(segment);
+                        setIsPreviewOpen(true);
+                      }}
+                    >
+                      <Eye className="w-4 h-4" />
+                      View Contacts
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
         </div>
       )}
+
+      {/* Preview Dialog */}
+      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              {selectedSegment?.name}
+            </DialogTitle>
+            <DialogDescription>
+              {previewContacts.length} contacts in this segment
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto">
+            {previewContacts.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                No contacts match this segment's criteria
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Engagement</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {previewContacts.slice(0, 100).map((contact) => (
+                    <TableRow key={contact.id}>
+                      <TableCell className="font-medium">{contact.email}</TableCell>
+                      <TableCell>
+                        {contact.first_name || contact.last_name
+                          ? `${contact.first_name || ""} ${contact.last_name || ""}`.trim()
+                          : "—"}
+                      </TableCell>
+                      <TableCell>{contact.company || "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{contact.status || "active"}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={
+                            (contact.engagement_score || 0) >= 70
+                              ? "bg-emerald-500/10 text-emerald-500"
+                              : (contact.engagement_score || 0) >= 40
+                              ? "bg-amber-500/10 text-amber-500"
+                              : "bg-destructive/10 text-destructive"
+                          }
+                        >
+                          {contact.engagement_score || 0}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+            {previewContacts.length > 100 && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Showing first 100 of {previewContacts.length} contacts
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };
