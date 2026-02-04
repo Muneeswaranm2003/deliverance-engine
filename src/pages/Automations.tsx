@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -13,33 +10,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AutomationFlowCard } from "@/components/automations/AutomationFlowCard";
+import { FlowBuilder } from "@/components/automations/FlowBuilder";
 import { motion } from "framer-motion";
 import {
   Plus,
   Zap,
-  Mail,
   Clock,
   Loader2,
-  Trash2,
-  Play,
-  Pause,
-  ArrowRight,
   Send,
-  UserPlus,
-  MousePointerClick,
-  Calendar,
   Copy,
   ExternalLink,
   RefreshCw,
   UserX,
+  Workflow,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,44 +43,6 @@ interface Automation {
   completed_count: number;
   created_at: string;
 }
-
-const campaignTriggers = [
-  { id: "email_opened", name: "Email Opened", icon: Mail },
-  { id: "link_clicked", name: "Link Clicked", icon: MousePointerClick },
-  { id: "not_opened", name: "Not Opened (after X days)", icon: Clock },
-  { id: "new_subscriber", name: "New Subscriber", icon: UserPlus },
-];
-
-const followupTriggers = [
-  { id: "no_reply", name: "No Reply After", icon: Clock },
-  { id: "opened_no_click", name: "Opened But No Click", icon: Mail },
-  { id: "bounced", name: "Email Bounced", icon: Mail },
-  { id: "scheduled", name: "Scheduled Date", icon: Calendar },
-  { id: "inactive", name: "Inactive Subscriber", icon: UserX },
-];
-
-const actions = [
-  { id: "send_email", name: "Send Follow-up Email" },
-  { id: "send_reengagement", name: "Send Re-engagement Email" },
-  { id: "add_tag", name: "Add Tag to Contact" },
-  { id: "move_list", name: "Move to Another List" },
-  { id: "notify", name: "Send Notification" },
-  { id: "webhook", name: "Trigger Webhook" },
-  { id: "mark_churned", name: "Mark as Churned" },
-];
-
-const delayOptions = [
-  { id: "1h", name: "1 hour" },
-  { id: "6h", name: "6 hours" },
-  { id: "1d", name: "1 day" },
-  { id: "2d", name: "2 days" },
-  { id: "3d", name: "3 days" },
-  { id: "1w", name: "1 week" },
-  { id: "2w", name: "2 weeks" },
-  { id: "30d", name: "30 days" },
-  { id: "60d", name: "60 days" },
-  { id: "90d", name: "90 days" },
-];
 
 const Automations = () => {
   const { user } = useAuth();
@@ -133,7 +80,6 @@ const Automations = () => {
           title: "Scheduled automations processed",
           description: `Checked ${data.automations_checked} automations, processed ${data.total_contacts_processed} contacts`,
         });
-        // Refresh automations to show updated counts
         fetchAutomations();
       } else {
         throw new Error(data.error || 'Failed to process');
@@ -318,20 +264,9 @@ const Automations = () => {
     toast({ title: "Webhook URL copied to clipboard" });
   };
 
-  const getTriggerName = (triggerId: string, type: "campaign" | "followup") => {
-    const triggers = type === "campaign" ? campaignTriggers : followupTriggers;
-    return triggers.find((t) => t.id === triggerId)?.name || triggerId;
-  };
-
-  const getActionName = (actionId: string) => {
-    return actions.find((a) => a.id === actionId)?.name || actionId;
-  };
-
-  const getDelayName = (delayId: string) => {
-    return delayOptions.find((d) => d.id === delayId)?.name || delayId;
-  };
-
   const filteredAutomations = automations.filter((a) => a.type === activeTab);
+  const campaignCount = automations.filter((a) => a.type === "campaign").length;
+  const followupCount = automations.filter((a) => a.type === "followup").length;
 
   if (isLoading) {
     return (
@@ -346,7 +281,7 @@ const Automations = () => {
   return (
     <AppLayout
       title="Automations"
-      description="Set up automated campaign responses and follow-ups"
+      description="Build visual automation flows for your campaigns"
       action={
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
@@ -355,245 +290,125 @@ const Automations = () => {
               New Automation
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create Automation</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <Workflow className="w-5 h-5 text-primary" />
+                Create Automation Flow
+              </DialogTitle>
             </DialogHeader>
-
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Automation Name</Label>
-                <Input
-                  id="name"
-                  placeholder="e.g., Follow up on unopened emails"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Automation Type</Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(value: "campaign" | "followup") =>
-                    setFormData({ ...formData, type: value, trigger: "" })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="campaign">
-                      <span className="flex items-center gap-2">
-                        <Send className="w-4 h-4" />
-                        Campaign Automation
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="followup">
-                      <span className="flex items-center gap-2">
-                        <Clock className="w-4 h-4" />
-                        Follow-up Automation
-                      </span>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>When this happens (Trigger)</Label>
-                <Select
-                  value={formData.trigger}
-                  onValueChange={(value) => setFormData({ ...formData, trigger: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a trigger" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(formData.type === "campaign" ? campaignTriggers : followupTriggers).map(
-                      (trigger) => (
-                        <SelectItem key={trigger.id} value={trigger.id}>
-                          <span className="flex items-center gap-2">
-                            <trigger.icon className="w-4 h-4" />
-                            {trigger.name}
-                          </span>
-                        </SelectItem>
-                      )
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {(formData.trigger === "not_opened" || formData.trigger === "no_reply") && (
-                <div className="space-y-2">
-                  <Label>Wait Duration</Label>
-                  <Select
-                    value={formData.delay}
-                    onValueChange={(value) => setFormData({ ...formData, delay: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select delay" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {delayOptions.map((delay) => (
-                        <SelectItem key={delay.id} value={delay.id}>
-                          {delay.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label>Do this (Action)</Label>
-                <Select
-                  value={formData.action}
-                  onValueChange={(value) => setFormData({ ...formData, action: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select an action" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {actions.map((action) => (
-                      <SelectItem key={action.id} value={action.id}>
-                        {action.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {formData.action === "webhook" && (
-                <div className="space-y-2">
-                  <Label htmlFor="webhook_url">Webhook URL</Label>
-                  <Input
-                    id="webhook_url"
-                    type="url"
-                    placeholder="https://your-webhook-endpoint.com"
-                    value={formData.webhook_url}
-                    onChange={(e) => setFormData({ ...formData, webhook_url: e.target.value })}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    This URL will be called when the automation triggers
-                  </p>
-                </div>
-              )}
-
-              <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button variant="hero" onClick={handleCreate} disabled={isSaving}>
-                  {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Create Automation
-                </Button>
-              </div>
-            </div>
+            <FlowBuilder
+              formData={formData}
+              onChange={(data) => setFormData({ ...formData, ...data })}
+              onSubmit={handleCreate}
+              onCancel={() => setIsDialogOpen(false)}
+              isSaving={isSaving}
+            />
           </DialogContent>
         </Dialog>
       }
     >
-      {/* Webhook URL Info Card */}
-      <Card className="mb-6 border-primary/20 bg-primary/5">
-        <CardContent className="py-4">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
+      {/* Quick Actions Grid */}
+      <div className="grid sm:grid-cols-3 gap-4 mb-6">
+        {/* Webhook URL Card */}
+        <Card className="glass border-primary/20">
+          <CardContent className="py-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                 <ExternalLink className="w-5 h-5 text-primary" />
               </div>
-              <div>
-                <p className="font-medium text-sm">Incoming Webhook URL</p>
-                <p className="text-xs text-muted-foreground">
-                  Configure your email provider to send events to this URL
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-sm">Webhook URL</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  For incoming events
                 </p>
               </div>
-            </div>
-            <div className="flex items-center gap-2 flex-1 min-w-0 max-w-xl">
-              <code className="text-xs bg-background px-3 py-2 rounded border flex-1 truncate">
-                {webhookUrl}
-              </code>
               <Button size="sm" variant="outline" onClick={copyWebhookUrl}>
                 <Copy className="w-4 h-4" />
               </Button>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Scheduled Automations Card */}
-      <Card className="mb-6 border-secondary/20 bg-secondary/5">
-        <CardContent className="py-4">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
+        {/* Scheduled Automations Card */}
+        <Card className="glass border-secondary/20">
+          <CardContent className="py-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-secondary/20 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-secondary/20 flex items-center justify-center shrink-0">
                 <Clock className="w-5 h-5 text-secondary-foreground" />
               </div>
-              <div>
-                <p className="font-medium text-sm">Scheduled Automations</p>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-sm">Scheduled</p>
                 <p className="text-xs text-muted-foreground">
-                  Process time-based triggers like "not opened after X days"
+                  Time-based triggers
                 </p>
               </div>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={processScheduledAutomations}
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+              </Button>
             </div>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={processScheduledAutomations}
-              disabled={isProcessing}
-            >
-              {isProcessing ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4 mr-2" />
-              )}
-              Run Now
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Re-engagement Card */}
-      <Card className="mb-6 border-orange-500/20 bg-orange-500/5">
-        <CardContent className="py-4">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
+        {/* Re-engagement Card */}
+        <Card className="glass border-amber-500/20">
+          <CardContent className="py-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                <UserX className="w-5 h-5 text-orange-600" />
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+                <UserX className="w-5 h-5 text-amber-500" />
               </div>
-              <div>
-                <p className="font-medium text-sm">Re-engagement Campaigns</p>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-sm">Re-engage</p>
                 <p className="text-xs text-muted-foreground">
-                  Automatically reach out to inactive subscribers who haven't engaged in 30+ days
+                  Inactive subscribers
                 </p>
               </div>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={processReengagement}
+                disabled={isReengaging}
+              >
+                {isReengaging ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+              </Button>
             </div>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={processReengagement}
-              disabled={isReengaging}
-            >
-              {isReengaging ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4 mr-2" />
-              )}
-              Process Now
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Tabs for Campaign vs Follow-up */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "campaign" | "followup")} className="mb-6">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="bg-secondary/50">
           <TabsTrigger value="campaign" className="gap-2">
             <Send className="w-4 h-4" />
-            Campaign Automations
+            Campaign
+            {campaignCount > 0 && (
+              <Badge variant="secondary" className="ml-1 text-xs px-1.5">
+                {campaignCount}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="followup" className="gap-2">
             <Clock className="w-4 h-4" />
-            Follow-up Automations
+            Follow-up
+            {followupCount > 0 && (
+              <Badge variant="secondary" className="ml-1 text-xs px-1.5">
+                {followupCount}
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
       </Tabs>
@@ -602,104 +417,41 @@ const Automations = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass rounded-xl p-12 text-center"
+          className="glass rounded-2xl p-12 text-center"
         >
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
-            <Zap className="w-8 h-8 text-primary" />
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-6">
+            <Workflow className="w-10 h-10 text-primary" />
           </div>
-          <h2 className="font-display text-xl font-semibold mb-2">
-            No {activeTab === "campaign" ? "campaign" : "follow-up"} automations yet
+          <h2 className="font-display text-2xl font-semibold mb-2">
+            Build Your First {activeTab === "campaign" ? "Campaign" : "Follow-up"} Flow
           </h2>
-          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+          <p className="text-muted-foreground mb-8 max-w-md mx-auto">
             {activeTab === "campaign"
-              ? "Create automations that trigger based on campaign events like opens and clicks."
-              : "Set up automated follow-ups for contacts who haven't responded."}
+              ? "Create visual automation flows that trigger based on email events like opens, clicks, and bounces."
+              : "Set up automated follow-up sequences for contacts who haven't responded or engaged."}
           </p>
-          <Button variant="hero" onClick={() => {
-            setFormData({ ...formData, type: activeTab });
-            setIsDialogOpen(true);
-          }}>
-            Create Your First Automation
+          <Button 
+            variant="hero" 
+            size="lg"
+            onClick={() => {
+              setFormData({ ...formData, type: activeTab });
+              setIsDialogOpen(true);
+            }}
+            className="gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Create Automation Flow
           </Button>
         </motion.div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredAutomations.map((automation, index) => (
-            <motion.div
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {filteredAutomations.map((automation) => (
+            <AutomationFlowCard
               key={automation.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              <Card className="glass border-border hover:border-primary/30 transition-colors">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-base">{automation.name}</CardTitle>
-                      <CardDescription>
-                        {automation.type === "campaign" ? "Campaign" : "Follow-up"}
-                      </CardDescription>
-                    </div>
-                    <Switch
-                      checked={automation.enabled}
-                      onCheckedChange={() => toggleAutomation(automation.id, automation.enabled)}
-                    />
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0 space-y-4">
-                  {/* Workflow visualization */}
-                  <div className="flex items-center gap-2 text-sm flex-wrap">
-                    <Badge variant="outline" className="shrink-0">
-                      {getTriggerName(automation.trigger, automation.type)}
-                    </Badge>
-                    {automation.delay && (
-                      <>
-                        <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
-                        <Badge variant="outline" className="shrink-0">
-                          <Clock className="w-3 h-3 mr-1" />
-                          {getDelayName(automation.delay)}
-                        </Badge>
-                      </>
-                    )}
-                    <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
-                    <Badge variant="secondary" className="shrink-0">
-                      {getActionName(automation.action)}
-                    </Badge>
-                  </div>
-
-                  {/* Stats */}
-                  <div className="flex gap-4 text-xs text-muted-foreground">
-                    <span>Triggered: {automation.triggered_count}</span>
-                    <span>Completed: {automation.completed_count}</span>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center justify-between">
-                    <Badge variant={automation.enabled ? "default" : "secondary"}>
-                      {automation.enabled ? (
-                        <>
-                          <Play className="w-3 h-3 mr-1" />
-                          Running
-                        </>
-                      ) : (
-                        <>
-                          <Pause className="w-3 h-3 mr-1" />
-                          Paused
-                        </>
-                      )}
-                    </Badge>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => deleteAutomation(automation.id)}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+              automation={automation}
+              onToggle={toggleAutomation}
+              onDelete={deleteAutomation}
+            />
           ))}
         </div>
       )}
