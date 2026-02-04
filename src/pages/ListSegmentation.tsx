@@ -46,6 +46,7 @@ import {
   ListFilter,
   Eye,
   X,
+  Pencil,
 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -74,10 +75,12 @@ const ListSegmentation = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [selectedSegment, setSelectedSegment] = useState<ListSegment | null>(null);
+  const [editingSegment, setEditingSegment] = useState<ListSegment | null>(null);
   
-  // Filter state for creating new segment
+  // Filter state for creating/editing segment
   const [filters, setFilters] = useState<SegmentFilters>({});
   const [segmentName, setSegmentName] = useState("");
   const [segmentDescription, setSegmentDescription] = useState("");
@@ -176,6 +179,35 @@ const ListSegmentation = () => {
     },
   });
 
+  // Update segment mutation
+  const updateSegment = useMutation({
+    mutationFn: async () => {
+      if (!editingSegment) throw new Error("No segment selected");
+      if (!segmentName.trim()) throw new Error("Segment name is required");
+
+      const { error } = await supabase
+        .from("list_segments")
+        .update({
+          name: segmentName.trim(),
+          description: segmentDescription.trim() || null,
+          filters: JSON.parse(JSON.stringify(filters)),
+          contact_count: filteredContacts.length,
+        })
+        .eq("id", editingSegment.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["list-segments"] });
+      toast.success("Segment updated successfully");
+      setIsEditOpen(false);
+      setEditingSegment(null);
+      resetForm();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to update segment");
+    },
+  });
+
   // Delete segment mutation
   const deleteSegment = useMutation({
     mutationFn: async (id: string) => {
@@ -195,6 +227,20 @@ const ListSegmentation = () => {
     setFilters({});
     setSegmentName("");
     setSegmentDescription("");
+  };
+
+  const openEditDialog = (segment: ListSegment) => {
+    setEditingSegment(segment);
+    setSegmentName(segment.name);
+    setSegmentDescription(segment.description || "");
+    setFilters(segment.filters);
+    setIsEditOpen(true);
+  };
+
+  const closeEditDialog = () => {
+    setIsEditOpen(false);
+    setEditingSegment(null);
+    resetForm();
   };
 
   const getFilterSummary = (filterSet: SegmentFilters): string => {
@@ -425,14 +471,23 @@ const ListSegmentation = () => {
                         </p>
                       )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => deleteSegment.mutate(segment.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEditDialog(segment)}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => deleteSegment.mutate(segment.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -479,6 +534,172 @@ const ListSegmentation = () => {
           ))}
         </div>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={(open) => !open && closeEditDialog()}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Segment</DialogTitle>
+            <DialogDescription>
+              Update segment filters and settings
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Segment Info */}
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-name">Segment Name *</Label>
+                <Input
+                  id="edit-name"
+                  placeholder="e.g., High Engagement Users"
+                  value={segmentName}
+                  onChange={(e) => setSegmentName(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-description">Description</Label>
+                <Textarea
+                  id="edit-description"
+                  placeholder="Describe this segment..."
+                  value={segmentDescription}
+                  onChange={(e) => setSegmentDescription(e.target.value)}
+                  rows={2}
+                />
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="space-y-4">
+              <h4 className="font-medium flex items-center gap-2">
+                <Filter className="w-4 h-4" />
+                Filter Criteria
+              </h4>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Status</Label>
+                  <Select
+                    value={filters.status || "all"}
+                    onValueChange={(v) => setFilters({ ...filters, status: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="churned">Churned</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Engagement Level</Label>
+                  <Select
+                    value={filters.engagement || "all"}
+                    onValueChange={(v) => setFilters({ ...filters, engagement: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All levels" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Levels</SelectItem>
+                      <SelectItem value="high">High (70+)</SelectItem>
+                      <SelectItem value="medium">Medium (40-69)</SelectItem>
+                      <SelectItem value="low">Low (&lt;40)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Company</Label>
+                  <Select
+                    value={filters.company || "all"}
+                    onValueChange={(v) => setFilters({ ...filters, company: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All companies" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Companies</SelectItem>
+                      {companies.map((company) => (
+                        <SelectItem key={company} value={company!}>
+                          {company}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Suppressed</Label>
+                  <Select
+                    value={filters.suppressed || "all"}
+                    onValueChange={(v) => setFilters({ ...filters, suppressed: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="no">Not Suppressed</SelectItem>
+                      <SelectItem value="yes">Suppressed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label>Search</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by email, name, or company..."
+                    value={filters.searchQuery || ""}
+                    onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value })}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Preview */}
+            <Card className="bg-secondary/30">
+              <CardContent className="pt-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-5 h-5 text-primary" />
+                    <span className="font-medium">
+                      {filteredContacts.length} contacts match
+                    </span>
+                  </div>
+                  <Badge variant="secondary">{getFilterSummary(filters)}</Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={closeEditDialog}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => updateSegment.mutate()}
+                disabled={!segmentName.trim() || updateSegment.isPending}
+                className="gap-2"
+              >
+                {updateSegment.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
