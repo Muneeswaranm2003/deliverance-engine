@@ -1,17 +1,23 @@
 import { useState, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { 
   Upload, 
   Users, 
   FileSpreadsheet, 
   X, 
   Check,
-  AlertCircle
+  AlertCircle,
+  ListFilter,
+  Loader2,
+  Plus
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -27,11 +33,144 @@ interface RecipientSelectorProps {
   onRecipientsChange: (recipients: Recipient[]) => void;
 }
 
+interface SegmentFilters {
+  status?: string;
+  engagement?: string;
+  company?: string;
+  suppressed?: string;
+  searchQuery?: string;
+}
+
+interface ListSegment {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  filters: SegmentFilters;
+  contact_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Contact {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  company: string | null;
+  status: string | null;
+  engagement_score: number | null;
+  suppressed: boolean | null;
+}
+
 const RecipientSelector = ({ recipients, onRecipientsChange }: RecipientSelectorProps) => {
   const [activeTab, setActiveTab] = useState("upload");
   const [manualEmails, setManualEmails] = useState("");
   const [dragActive, setDragActive] = useState(false);
+  const [loadingSegment, setLoadingSegment] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch saved segments
+  const { data: segments, isLoading: segmentsLoading } = useQuery({
+    queryKey: ["list-segments"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("list_segments")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as ListSegment[];
+    },
+  });
+
+  // Apply filters to contacts (matching ListSegmentation logic)
+  const applyFilters = (contacts: Contact[], filterSet: SegmentFilters): Contact[] => {
+    return contacts.filter((contact) => {
+      if (filterSet.status && filterSet.status !== "all" && contact.status !== filterSet.status) {
+        return false;
+      }
+      if (filterSet.engagement && filterSet.engagement !== "all") {
+        const score = contact.engagement_score || 0;
+        if (filterSet.engagement === "high" && score < 70) return false;
+        if (filterSet.engagement === "medium" && (score < 40 || score >= 70)) return false;
+        if (filterSet.engagement === "low" && score >= 40) return false;
+      }
+      if (filterSet.company && filterSet.company !== "all" && contact.company !== filterSet.company) {
+        return false;
+      }
+      if (filterSet.suppressed && filterSet.suppressed !== "all") {
+        if (filterSet.suppressed === "yes" && !contact.suppressed) return false;
+        if (filterSet.suppressed === "no" && contact.suppressed) return false;
+      }
+      if (filterSet.searchQuery) {
+        const query = filterSet.searchQuery.toLowerCase();
+        const matchesSearch =
+          contact.email.toLowerCase().includes(query) ||
+          contact.first_name?.toLowerCase().includes(query) ||
+          contact.last_name?.toLowerCase().includes(query) ||
+          contact.company?.toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+      }
+      return true;
+    });
+  };
+
+  const handleImportSegment = async (segment: ListSegment) => {
+    setLoadingSegment(segment.id);
+    try {
+      // Fetch all contacts
+      const { data: allContacts, error } = await supabase
+        .from("contacts")
+        .select("id, email, first_name, last_name, company, status, engagement_score, suppressed");
+      
+      if (error) throw error;
+
+      // Apply segment filters
+      const filteredContacts = applyFilters(allContacts as Contact[], segment.filters);
+      
+      // Convert to recipients and filter out duplicates
+      const existingEmails = new Set(recipients.map(r => r.email.toLowerCase()));
+      const newRecipients: Recipient[] = filteredContacts
+        .filter(c => !existingEmails.has(c.email.toLowerCase()))
+        .map(contact => ({
+          email: contact.email,
+          firstName: contact.first_name || undefined,
+          lastName: contact.last_name || undefined,
+          company: contact.company || undefined,
+        }));
+
+      if (newRecipients.length === 0) {
+        toast({
+          title: "No new contacts",
+          description: "All contacts from this segment are already added",
+        });
+      } else {
+        onRecipientsChange([...recipients, ...newRecipients]);
+        toast({
+          title: "Segment imported",
+          description: `Added ${newRecipients.length} recipients from "${segment.name}"`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Import failed",
+        description: "Could not import segment contacts",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingSegment(null);
+    }
+  };
+
+  const getFilterSummary = (filterSet: SegmentFilters): string => {
+    const parts: string[] = [];
+    if (filterSet.status && filterSet.status !== "all") parts.push(`Status: ${filterSet.status}`);
+    if (filterSet.engagement && filterSet.engagement !== "all") parts.push(`Engagement: ${filterSet.engagement}`);
+    if (filterSet.company && filterSet.company !== "all") parts.push(`Company: ${filterSet.company}`);
+    if (filterSet.suppressed && filterSet.suppressed !== "all") parts.push(`Suppressed: ${filterSet.suppressed}`);
+    if (filterSet.searchQuery) parts.push(`Search: "${filterSet.searchQuery}"`);
+    return parts.length > 0 ? parts.join(" • ") : "All contacts";
+  };
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -163,6 +302,10 @@ const RecipientSelector = ({ recipients, onRecipientsChange }: RecipientSelector
             <Users className="w-4 h-4" />
             Manual Entry
           </TabsTrigger>
+          <TabsTrigger value="segments" className="gap-2">
+            <ListFilter className="w-4 h-4" />
+            Segments
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="upload" className="mt-4">
@@ -217,6 +360,63 @@ const RecipientSelector = ({ recipients, onRecipientsChange }: RecipientSelector
           <Button type="button" onClick={handleManualAdd}>
             Add Recipients
           </Button>
+        </TabsContent>
+
+        <TabsContent value="segments" className="mt-4">
+          {segmentsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : !segments || segments.length === 0 ? (
+            <Card className="bg-secondary/30">
+              <CardContent className="py-8 text-center">
+                <ListFilter className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground mb-2">No saved segments</p>
+                <p className="text-sm text-muted-foreground">
+                  Create segments in the List Segmentation page to use them here
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-3">
+              {segments.map((segment) => (
+                <Card 
+                  key={segment.id} 
+                  className="bg-secondary/30 hover:border-primary/30 transition-all"
+                >
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium truncate">{segment.name}</span>
+                          <Badge variant="secondary" className="shrink-0">
+                            {segment.contact_count} contacts
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {getFilterSummary(segment.filters)}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleImportSegment(segment)}
+                        disabled={loadingSegment === segment.id}
+                        className="shrink-0 gap-2"
+                      >
+                        {loadingSegment === segment.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Plus className="w-4 h-4" />
+                        )}
+                        Import
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
