@@ -13,6 +13,8 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AutomationFlowCard } from "@/components/automations/AutomationFlowCard";
 import { FlowBuilder } from "@/components/automations/FlowBuilder";
+ import { MultiStepFlowBuilder } from "@/components/automations/MultiStepFlowBuilder";
+ import { FlowStep } from "@/components/automations/flowTypes";
 import { motion } from "framer-motion";
 import {
   Plus,
@@ -25,6 +27,7 @@ import {
   RefreshCw,
   UserX,
   Workflow,
+   Layers,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,6 +55,7 @@ const Automations = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isReengaging, setIsReengaging] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+   const [isMultiStepDialogOpen, setIsMultiStepDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"campaign" | "followup">("campaign");
   const [formData, setFormData] = useState({
     name: "",
@@ -216,6 +220,80 @@ const Automations = () => {
     }
   };
 
+   const handleMultiStepCreate = async (data: {
+     name: string;
+     description: string;
+     steps: FlowStep[];
+   }) => {
+     if (!user) return;
+ 
+     // Extract trigger and first action from steps for backwards compatibility
+     const triggerStep = data.steps.find((s) => s.type === "trigger");
+     const actionStep = data.steps.find((s) => s.type === "action");
+     const delayStep = data.steps.find((s) => s.type === "delay");
+ 
+     if (!triggerStep || !actionStep) {
+       toast({
+         title: "Invalid flow",
+         description: "Flow must have at least one trigger and one action",
+         variant: "destructive",
+       });
+       return;
+     }
+ 
+     // Determine type based on trigger
+     const campaignTriggers = ["email_opened", "link_clicked", "not_opened", "new_subscriber"];
+     const automationType = campaignTriggers.includes(triggerStep.nodeType) ? "campaign" : "followup";
+ 
+     // Map delay step to delay string
+     const delayMap: Record<string, string> = {
+       wait_1h: "1h",
+       wait_1d: "1d",
+       wait_3d: "3d",
+       wait_1w: "1w",
+       wait_custom: "1d",
+     };
+ 
+     setIsSaving(true);
+     try {
+       const { data: newAutomation, error } = await supabase
+         .from("automations")
+         .insert({
+           user_id: user.id,
+           name: data.name,
+           type: automationType,
+           trigger: triggerStep.nodeType,
+           action: actionStep.nodeType,
+           delay: delayStep ? delayMap[delayStep.nodeType] || null : null,
+           enabled: true,
+         })
+         .select()
+         .single();
+ 
+       if (error) throw error;
+ 
+       setAutomations([
+         {
+           ...newAutomation,
+           type: newAutomation.type as "campaign" | "followup",
+           delay: newAutomation.delay || undefined,
+           webhook_url: newAutomation.webhook_url || undefined,
+         },
+         ...automations,
+       ]);
+       setIsMultiStepDialogOpen(false);
+       toast({ title: "Multi-step automation created successfully" });
+     } catch (error) {
+       console.error("Error creating automation:", error);
+       toast({
+         title: "Error creating automation",
+         variant: "destructive",
+       });
+     } finally {
+       setIsSaving(false);
+     }
+   };
+ 
   const toggleAutomation = async (id: string, currentEnabled: boolean) => {
     try {
       const { error } = await supabase
@@ -283,29 +361,49 @@ const Automations = () => {
       title="Automations"
       description="Build visual automation flows for your campaigns"
       action={
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="hero" className="gap-2">
-              <Plus className="w-4 h-4" />
-              New Automation
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Workflow className="w-5 h-5 text-primary" />
-                Create Automation Flow
-              </DialogTitle>
-            </DialogHeader>
-            <FlowBuilder
-              formData={formData}
-              onChange={(data) => setFormData({ ...formData, ...data })}
-              onSubmit={handleCreate}
-              onCancel={() => setIsDialogOpen(false)}
-              isSaving={isSaving}
-            />
-          </DialogContent>
-        </Dialog>
+        <div className="flex gap-2">
+          <Dialog open={isMultiStepDialogOpen} onOpenChange={setIsMultiStepDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="hero" className="gap-2">
+                <Layers className="w-4 h-4" />
+                Multi-Step Flow
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+              <DialogHeader className="sr-only">
+                <DialogTitle>Create Multi-Step Automation</DialogTitle>
+              </DialogHeader>
+              <MultiStepFlowBuilder
+                onSubmit={handleMultiStepCreate}
+                onCancel={() => setIsMultiStepDialogOpen(false)}
+                isSaving={isSaving}
+              />
+            </DialogContent>
+          </Dialog>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Plus className="w-4 h-4" />
+                Quick Create
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Workflow className="w-5 h-5 text-primary" />
+                  Create Automation Flow
+                </DialogTitle>
+              </DialogHeader>
+              <FlowBuilder
+                formData={formData}
+                onChange={(data) => setFormData({ ...formData, ...data })}
+                onSubmit={handleCreate}
+                onCancel={() => setIsDialogOpen(false)}
+                isSaving={isSaving}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
       }
     >
       {/* Quick Actions Grid */}
@@ -441,6 +539,15 @@ const Automations = () => {
           >
             <Plus className="w-5 h-5" />
             Create Automation Flow
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => setIsMultiStepDialogOpen(true)}
+            className="gap-2"
+          >
+            <Layers className="w-5 h-5" />
+            Multi-Step Builder
           </Button>
         </motion.div>
       ) : (
