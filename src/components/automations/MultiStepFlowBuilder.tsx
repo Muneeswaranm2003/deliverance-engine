@@ -6,8 +6,8 @@
  import { Textarea } from "@/components/ui/textarea";
  import { NodePalette } from "./NodePalette";
  import { FlowCanvas } from "./FlowCanvas";
- import { FlowStep, NodeConfig } from "./flowTypes";
- import { Loader2, Workflow, Save } from "lucide-react";
+import { FlowStep, NodeConfig, flattenSteps } from "./flowTypes";
+import { Loader2, Workflow, Save } from "lucide-react";
  
  interface MultiStepFlowBuilderProps {
    onSubmit: (data: {
@@ -52,9 +52,10 @@
      onSubmit({ name, description, steps });
    }, [name, description, steps, onSubmit]);
  
-   const hasTrigger = steps.some((s) => s.type === "trigger");
-   const hasAction = steps.some((s) => s.type === "action");
-   const isValid = name.trim() && hasTrigger && hasAction;
+    const allSteps = flattenSteps(steps);
+    const hasTrigger = allSteps.some((s) => s.type === "trigger");
+    const hasAction = allSteps.some((s) => s.type === "action");
+    const isValid = name.trim() && hasTrigger && hasAction;
  
    return (
      <div className="flex flex-col h-[70vh]">
@@ -103,18 +104,21 @@
        {/* Footer */}
        <div className="shrink-0 p-4 border-t border-border bg-secondary/30">
          <div className="flex items-center justify-between">
-           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-             <Workflow className="w-4 h-4" />
-             <span>
-               {steps.length} step{steps.length !== 1 ? "s" : ""} configured
-             </span>
-             {!hasTrigger && steps.length > 0 && (
-               <span className="text-warning">• Needs a trigger</span>
-             )}
-             {!hasAction && steps.length > 0 && (
-               <span className="text-warning">• Needs an action</span>
-             )}
-           </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Workflow className="w-4 h-4" />
+              <span>
+                {allSteps.length} step{allSteps.length !== 1 ? "s" : ""} configured
+              </span>
+              {!hasTrigger && allSteps.length > 0 && (
+                <span className="text-warning">• Needs a trigger</span>
+              )}
+              {!hasAction && allSteps.length > 0 && (
+                <span className="text-warning">• Needs an action</span>
+              )}
+              {steps.some((s) => s.type === "condition") && (
+                <span className="text-violet-500">• Has branching</span>
+              )}
+            </div>
            <div className="flex gap-3">
              <Button variant="outline" onClick={onCancel}>
                Cancel
