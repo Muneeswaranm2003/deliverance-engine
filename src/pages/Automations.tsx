@@ -47,6 +47,46 @@ interface Automation {
   created_at: string;
 }
 
+/** Convert a saved automation record back into flow builder data */
+const automationToFlowData = (automation: Automation): { name: string; description: string; steps: FlowStep[] } => {
+  const steps: FlowStep[] = [];
+
+  // Add trigger step
+  steps.push({
+    id: `step-trigger-${automation.id}`,
+    type: "trigger",
+    nodeType: automation.trigger,
+  });
+
+  // Add delay step if present
+  if (automation.delay) {
+    const reverseDelayMap: Record<string, string> = {
+      "1h": "wait_1h",
+      "1d": "wait_1d",
+      "3d": "wait_3d",
+      "1w": "wait_1w",
+    };
+    steps.push({
+      id: `step-delay-${automation.id}`,
+      type: "delay",
+      nodeType: reverseDelayMap[automation.delay] || "wait_custom",
+    });
+  }
+
+  // Add action step
+  steps.push({
+    id: `step-action-${automation.id}`,
+    type: "action",
+    nodeType: automation.action,
+  });
+
+  return {
+    name: automation.name,
+    description: "",
+    steps,
+  };
+};
+
 const Automations = () => {
   const { user } = useAuth();
   const [automations, setAutomations] = useState<Automation[]>([]);
@@ -55,7 +95,8 @@ const Automations = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isReengaging, setIsReengaging] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-   const [isMultiStepDialogOpen, setIsMultiStepDialogOpen] = useState(false);
+  const [isMultiStepDialogOpen, setIsMultiStepDialogOpen] = useState(false);
+  const [editingAutomation, setEditingAutomation] = useState<Automation | null>(null);
   const [activeTab, setActiveTab] = useState<"campaign" | "followup">("campaign");
   const [formData, setFormData] = useState({
     name: "",
@@ -292,8 +333,89 @@ const Automations = () => {
      } finally {
        setIsSaving(false);
      }
-   };
+    };
  
+  const handleEditAutomation = (id: string) => {
+    const automation = automations.find((a) => a.id === id);
+    if (!automation) return;
+    setEditingAutomation(automation);
+    setIsMultiStepDialogOpen(true);
+  };
+
+  const handleMultiStepUpdate = async (data: {
+    name: string;
+    description: string;
+    steps: FlowStep[];
+  }) => {
+    if (!user || !editingAutomation) return;
+
+    const triggerStep = data.steps.find((s) => s.type === "trigger");
+    const actionStep = data.steps.find((s) => s.type === "action");
+    const delayStep = data.steps.find((s) => s.type === "delay");
+
+    if (!triggerStep || !actionStep) {
+      toast({
+        title: "Invalid flow",
+        description: "Flow must have at least one trigger and one action",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const campaignTriggers = ["email_opened", "link_clicked", "not_opened", "new_subscriber"];
+    const automationType = campaignTriggers.includes(triggerStep.nodeType) ? "campaign" : "followup";
+
+    const delayMap: Record<string, string> = {
+      wait_1h: "1h",
+      wait_1d: "1d",
+      wait_3d: "3d",
+      wait_1w: "1w",
+      wait_custom: "1d",
+    };
+
+    setIsSaving(true);
+    try {
+      const { data: updated, error } = await supabase
+        .from("automations")
+        .update({
+          name: data.name,
+          type: automationType,
+          trigger: triggerStep.nodeType,
+          action: actionStep.nodeType,
+          delay: delayStep ? delayMap[delayStep.nodeType] || null : null,
+        })
+        .eq("id", editingAutomation.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setAutomations(
+        automations.map((a) =>
+          a.id === editingAutomation.id
+            ? {
+                ...updated,
+                type: updated.type as "campaign" | "followup",
+                delay: updated.delay || undefined,
+                webhook_url: updated.webhook_url || undefined,
+              }
+            : a
+        )
+      );
+      setIsMultiStepDialogOpen(false);
+      setEditingAutomation(null);
+      toast({ title: "Automation updated successfully" });
+    } catch (error) {
+      console.error("Error updating automation:", error);
+      toast({
+        title: "Error updating automation",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const toggleAutomation = async (id: string, currentEnabled: boolean) => {
     try {
       const { error } = await supabase
@@ -362,21 +484,28 @@ const Automations = () => {
       description="Build visual automation flows for your campaigns"
       action={
         <div className="flex gap-2">
-          <Dialog open={isMultiStepDialogOpen} onOpenChange={setIsMultiStepDialogOpen}>
+          <Dialog open={isMultiStepDialogOpen} onOpenChange={(open) => {
+            setIsMultiStepDialogOpen(open);
+            if (!open) setEditingAutomation(null);
+          }}>
             <DialogTrigger asChild>
-              <Button variant="hero" className="gap-2">
+              <Button variant="hero" className="gap-2" onClick={() => setEditingAutomation(null)}>
                 <Layers className="w-4 h-4" />
                 Multi-Step Flow
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-4xl max-h-[90vh] p-0 overflow-hidden">
               <DialogHeader className="sr-only">
-                <DialogTitle>Create Multi-Step Automation</DialogTitle>
+                <DialogTitle>{editingAutomation ? "Edit Automation" : "Create Multi-Step Automation"}</DialogTitle>
               </DialogHeader>
               <MultiStepFlowBuilder
-                onSubmit={handleMultiStepCreate}
-                onCancel={() => setIsMultiStepDialogOpen(false)}
+                onSubmit={editingAutomation ? handleMultiStepUpdate : handleMultiStepCreate}
+                onCancel={() => {
+                  setIsMultiStepDialogOpen(false);
+                  setEditingAutomation(null);
+                }}
                 isSaving={isSaving}
+                initialData={editingAutomation ? automationToFlowData(editingAutomation) : undefined}
               />
             </DialogContent>
           </Dialog>
@@ -558,6 +687,7 @@ const Automations = () => {
               automation={automation}
               onToggle={toggleAutomation}
               onDelete={deleteAutomation}
+              onEdit={handleEditAutomation}
             />
           ))}
         </div>

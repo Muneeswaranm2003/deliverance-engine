@@ -24,6 +24,7 @@ import {
   Webhook,
   Users,
   AlertTriangle,
+  Pencil,
 } from "lucide-react";
 
 interface AutomationFlowCardProps {
@@ -41,6 +42,7 @@ interface AutomationFlowCardProps {
   };
   onToggle: (id: string, enabled: boolean) => void;
   onDelete: (id: string) => void;
+  onEdit: (id: string) => void;
 }
 
 const triggerMeta: Record<string, { icon: typeof Mail; label: string }> = {
@@ -82,6 +84,7 @@ export const AutomationFlowCard = ({
   automation,
   onToggle,
   onDelete,
+  onEdit,
 }: AutomationFlowCardProps) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -244,15 +247,26 @@ export const AutomationFlowCard = ({
                     </>
                   )}
                 </Badge>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => onDelete(automation.id)}
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Delete
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-primary hover:text-primary hover:bg-primary/10"
+                    onClick={() => onEdit(automation.id)}
+                  >
+                    <Pencil className="w-4 h-4 mr-1" />
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => onDelete(automation.id)}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Delete
+                  </Button>
+                </div>
               </div>
             </motion.div>
           )}
