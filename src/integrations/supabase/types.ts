@@ -62,7 +62,9 @@ export type Database = {
           completed_count: number | null
           created_at: string
           delay: string | null
+          description: string | null
           enabled: boolean
+          flow_config: Json | null
           id: string
           name: string
           trigger: string
@@ -77,7 +79,9 @@ export type Database = {
           completed_count?: number | null
           created_at?: string
           delay?: string | null
+          description?: string | null
           enabled?: boolean
+          flow_config?: Json | null
           id?: string
           name: string
           trigger: string
@@ -92,7 +96,9 @@ export type Database = {
           completed_count?: number | null
           created_at?: string
           delay?: string | null
+          description?: string | null
           enabled?: boolean
+          flow_config?: Json | null
           id?: string
           name?: string
           trigger?: string

@@ -45,20 +45,30 @@ interface Automation {
   triggered_count: number;
   completed_count: number;
   created_at: string;
+  flow_config?: FlowStep[] | null;
+  description?: string | null;
 }
 
 /** Convert a saved automation record back into flow builder data */
 const automationToFlowData = (automation: Automation): { name: string; description: string; steps: FlowStep[] } => {
+  // If we have a saved flow_config, use it directly
+  if (automation.flow_config && Array.isArray(automation.flow_config) && automation.flow_config.length > 0) {
+    return {
+      name: automation.name,
+      description: automation.description || "",
+      steps: automation.flow_config,
+    };
+  }
+
+  // Legacy fallback: reconstruct from flat fields
   const steps: FlowStep[] = [];
 
-  // Add trigger step
   steps.push({
     id: `step-trigger-${automation.id}`,
     type: "trigger",
     nodeType: automation.trigger,
   });
 
-  // Add delay step if present
   if (automation.delay) {
     const reverseDelayMap: Record<string, string> = {
       "1h": "wait_1h",
@@ -73,7 +83,6 @@ const automationToFlowData = (automation: Automation): { name: string; descripti
     });
   }
 
-  // Add action step
   steps.push({
     id: `step-action-${automation.id}`,
     type: "action",
@@ -82,10 +91,27 @@ const automationToFlowData = (automation: Automation): { name: string; descripti
 
   return {
     name: automation.name,
-    description: "",
+    description: automation.description || "",
     steps,
   };
 };
+
+/** Safely map a DB record to the local Automation type */
+const mapDbToAutomation = (a: Record<string, unknown>): Automation => ({
+  id: a.id as string,
+  name: a.name as string,
+  type: a.type as "campaign" | "followup",
+  trigger: a.trigger as string,
+  action: a.action as string,
+  delay: (a.delay as string) || undefined,
+  enabled: a.enabled as boolean,
+  webhook_url: (a.webhook_url as string) || undefined,
+  triggered_count: (a.triggered_count as number) || 0,
+  completed_count: (a.completed_count as number) || 0,
+  created_at: a.created_at as string,
+  flow_config: Array.isArray(a.flow_config) ? (a.flow_config as unknown as FlowStep[]) : undefined,
+  description: (a.description as string) || undefined,
+});
 
 const Automations = () => {
   const { user } = useAuth();
@@ -184,12 +210,7 @@ const Automations = () => {
 
       if (error) throw error;
       
-      setAutomations(data?.map(a => ({
-        ...a,
-        type: a.type as "campaign" | "followup",
-        delay: a.delay || undefined,
-        webhook_url: a.webhook_url || undefined,
-      })) || []);
+      setAutomations(data?.map(a => mapDbToAutomation(a as unknown as Record<string, unknown>)) || []);
     } catch (error) {
       console.error('Error fetching automations:', error);
       toast({
@@ -241,12 +262,7 @@ const Automations = () => {
 
       if (error) throw error;
 
-      setAutomations([{
-        ...data,
-        type: data.type as "campaign" | "followup",
-        delay: data.delay || undefined,
-        webhook_url: data.webhook_url || undefined,
-      }, ...automations]);
+      setAutomations([mapDbToAutomation(data as unknown as Record<string, unknown>), ...automations]);
       setIsDialogOpen(false);
       setFormData({ name: "", type: "campaign", trigger: "", action: "", delay: "", webhook_url: "" });
       toast({ title: "Automation created successfully" });
@@ -298,30 +314,27 @@ const Automations = () => {
      setIsSaving(true);
      try {
        const { data: newAutomation, error } = await supabase
-         .from("automations")
-         .insert({
-           user_id: user.id,
-           name: data.name,
-           type: automationType,
-           trigger: triggerStep.nodeType,
-           action: actionStep.nodeType,
-           delay: delayStep ? delayMap[delayStep.nodeType] || null : null,
-           enabled: true,
-         })
-         .select()
-         .single();
+          .from("automations")
+          .insert({
+            user_id: user.id,
+            name: data.name,
+            description: data.description || null,
+            type: automationType,
+            trigger: triggerStep.nodeType,
+            action: actionStep.nodeType,
+            delay: delayStep ? delayMap[delayStep.nodeType] || null : null,
+            flow_config: JSON.parse(JSON.stringify(data.steps)),
+            enabled: true,
+          })
+          .select()
+          .single();
  
-       if (error) throw error;
- 
-       setAutomations([
-         {
-           ...newAutomation,
-           type: newAutomation.type as "campaign" | "followup",
-           delay: newAutomation.delay || undefined,
-           webhook_url: newAutomation.webhook_url || undefined,
-         },
-         ...automations,
-       ]);
+        if (error) throw error;
+
+        setAutomations([
+          mapDbToAutomation(newAutomation as unknown as Record<string, unknown>),
+          ...automations,
+        ]);
        setIsMultiStepDialogOpen(false);
        toast({ title: "Multi-step automation created successfully" });
      } catch (error) {
@@ -379,10 +392,12 @@ const Automations = () => {
         .from("automations")
         .update({
           name: data.name,
+          description: data.description || null,
           type: automationType,
           trigger: triggerStep.nodeType,
           action: actionStep.nodeType,
           delay: delayStep ? delayMap[delayStep.nodeType] || null : null,
+          flow_config: JSON.parse(JSON.stringify(data.steps)),
         })
         .eq("id", editingAutomation.id)
         .select()
@@ -393,12 +408,7 @@ const Automations = () => {
       setAutomations(
         automations.map((a) =>
           a.id === editingAutomation.id
-            ? {
-                ...updated,
-                type: updated.type as "campaign" | "followup",
-                delay: updated.delay || undefined,
-                webhook_url: updated.webhook_url || undefined,
-              }
+            ? mapDbToAutomation(updated as unknown as Record<string, unknown>)
             : a
         )
       );
