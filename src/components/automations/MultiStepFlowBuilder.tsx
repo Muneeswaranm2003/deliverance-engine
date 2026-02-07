@@ -1,11 +1,12 @@
- import { useState, useCallback } from "react";
- import { motion } from "framer-motion";
- import { Input } from "@/components/ui/input";
- import { Label } from "@/components/ui/label";
- import { Button } from "@/components/ui/button";
- import { Textarea } from "@/components/ui/textarea";
- import { NodePalette } from "./NodePalette";
- import { FlowCanvas } from "./FlowCanvas";
+import { useState, useCallback } from "react";
+import { motion } from "framer-motion";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { NodePalette } from "./NodePalette";
+import { FlowCanvas } from "./FlowCanvas";
+import { NodeConfigPanel } from "./NodeConfigPanel";
 import { FlowStep, NodeConfig, flattenSteps } from "./flowTypes";
 import { Loader2, Workflow, Save } from "lucide-react";
  
@@ -33,8 +34,9 @@ import { Loader2, Workflow, Save } from "lucide-react";
    const [name, setName] = useState(initialData?.name || "");
    const [description, setDescription] = useState(initialData?.description || "");
    const [steps, setSteps] = useState<FlowStep[]>(initialData?.steps || []);
-   const [isDraggingFromPalette, setIsDraggingFromPalette] = useState(false);
-   const [draggedNode, setDraggedNode] = useState<NodeConfig | null>(null);
+    const [isDraggingFromPalette, setIsDraggingFromPalette] = useState(false);
+    const [draggedNode, setDraggedNode] = useState<NodeConfig | null>(null);
+    const [configuringStep, setConfiguringStep] = useState<FlowStep | null>(null);
  
    const handleDragStart = useCallback((node: NodeConfig) => {
      setDraggedNode(node);
@@ -46,11 +48,28 @@ import { Loader2, Workflow, Save } from "lucide-react";
      setIsDraggingFromPalette(false);
    }, []);
  
-   const handleSubmit = useCallback(() => {
-     if (!name.trim()) return;
-     if (steps.length === 0) return;
-     onSubmit({ name, description, steps });
-   }, [name, description, steps, onSubmit]);
+    const handleSubmit = useCallback(() => {
+      if (!name.trim()) return;
+      if (steps.length === 0) return;
+      onSubmit({ name, description, steps });
+    }, [name, description, steps, onSubmit]);
+
+    const handleConfigureStep = useCallback((step: FlowStep) => {
+      setConfiguringStep(step);
+    }, []);
+
+    const handleSaveConfig = useCallback((stepId: string, config: Record<string, unknown>) => {
+      const updateStepConfig = (items: FlowStep[]): FlowStep[] =>
+        items.map((s) => {
+          if (s.id === stepId) return { ...s, config };
+          return {
+            ...s,
+            yesBranch: s.yesBranch ? updateStepConfig(s.yesBranch) : s.yesBranch,
+            noBranch: s.noBranch ? updateStepConfig(s.noBranch) : s.noBranch,
+          };
+        });
+      setSteps(updateStepConfig(steps));
+    }, [steps]);
  
     const allSteps = flattenSteps(steps);
     const hasTrigger = allSteps.some((s) => s.type === "trigger");
@@ -92,13 +111,23 @@ import { Loader2, Workflow, Save } from "lucide-react";
          {/* Node Palette */}
          <NodePalette onDragStart={handleDragStart} onDragEnd={handleDragEnd} />
  
-         {/* Flow Canvas */}
-         <FlowCanvas
-           steps={steps}
-           onStepsChange={setSteps}
-           isDraggingFromPalette={isDraggingFromPalette}
-           draggedNode={draggedNode}
-         />
+          {/* Flow Canvas */}
+          <FlowCanvas
+            steps={steps}
+            onStepsChange={setSteps}
+            isDraggingFromPalette={isDraggingFromPalette}
+            draggedNode={draggedNode}
+            onConfigureStep={handleConfigureStep}
+          />
+
+          {/* Node Config Panel */}
+          {configuringStep && (
+            <NodeConfigPanel
+              step={configuringStep}
+              onSave={handleSaveConfig}
+              onClose={() => setConfiguringStep(null)}
+            />
+          )}
        </div>
  
        {/* Footer */}
