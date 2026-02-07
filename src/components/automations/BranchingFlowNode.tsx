@@ -1,7 +1,7 @@
 import { useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { X, Plus, GitBranch, Check, XIcon } from "lucide-react";
+import { X, Plus, GitBranch, Check, XIcon, Settings } from "lucide-react";
 import { FlowStep, NodeConfig, nodeStyles } from "./flowTypes";
 import { nodeCategories } from "./NodePalette";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ interface BranchingFlowNodeProps {
   onUpdateStep: (id: string, updates: Partial<FlowStep>) => void;
   isDraggingFromPalette: boolean;
   draggedNode: NodeConfig | null;
+  onConfigureStep?: (step: FlowStep) => void;
 }
 
 export const BranchingFlowNode = ({
@@ -27,6 +28,7 @@ export const BranchingFlowNode = ({
   onUpdateStep,
   isDraggingFromPalette,
   draggedNode,
+  onConfigureStep,
 }: BranchingFlowNodeProps) => {
   const styles = nodeStyles.condition;
 
@@ -131,14 +133,26 @@ export const BranchingFlowNode = ({
             </p>
           </div>
 
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-            onClick={() => onRemove(step.id)}
-          >
-            <X className="w-3.5 h-3.5" />
-          </Button>
+          <div className="flex items-center gap-1">
+            {onConfigureStep && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                onClick={() => onConfigureStep(step)}
+              >
+                <Settings className="w-3.5 h-3.5" />
+              </Button>
+            )}
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+              onClick={() => onRemove(step.id)}
+            >
+              <X className="w-3.5 h-3.5" />
+            </Button>
+          </div>
         </div>
 
         {/* Branch paths */}

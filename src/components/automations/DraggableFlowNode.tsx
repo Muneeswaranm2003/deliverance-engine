@@ -4,8 +4,30 @@
  import { GripVertical, X, Settings } from "lucide-react";
  import { FlowStep, nodeStyles } from "./flowTypes";
  import { nodeCategories } from "./NodePalette";
- import { Button } from "@/components/ui/button";
- 
+import { Button } from "@/components/ui/button";
+
+/** Get a short summary of the node's configuration */
+function getConfigSummary(step: FlowStep): string {
+  const c = step.config || {};
+  switch (step.nodeType) {
+    case "send_email":
+    case "send_reengagement":
+      return (c.template_name as string) || (c.subject as string) || "Configured";
+    case "add_tag":
+      return c.tag_name ? `Tag: ${c.tag_name}` : "Configured";
+    case "move_list":
+      return c.list_name ? `List: ${c.list_name}` : "Configured";
+    case "webhook":
+      return (c.webhook_url as string) || "Configured";
+    case "wait_custom":
+      return c.delay_value ? `${c.delay_value} ${c.delay_unit || "hours"}` : "Configured";
+    case "notify":
+      return c.channel ? `Via ${c.channel}` : "Configured";
+    default:
+      return "Configured ✓";
+  }
+}
+
  interface DraggableFlowNodeProps {
    step: FlowStep;
    index: number;
@@ -94,11 +116,17 @@
              </div>
            )}
  
-           {/* Content */}
-           <div className="min-w-0 flex-1">
-             <p className="font-medium text-sm truncate">{nodeConfig?.name || step.nodeType}</p>
-             <p className="text-xs text-muted-foreground capitalize">{step.type}</p>
-           </div>
+            {/* Content */}
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-sm truncate">{nodeConfig?.name || step.nodeType}</p>
+              {step.config && Object.keys(step.config).length > 0 ? (
+                <p className="text-xs text-muted-foreground truncate">
+                  {getConfigSummary(step)}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground capitalize">{step.type}</p>
+              )}
+            </div>
  
            {/* Actions */}
            <div className="flex items-center gap-1">

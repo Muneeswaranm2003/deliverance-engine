@@ -12,6 +12,7 @@ interface FlowCanvasProps {
   onStepsChange: (steps: FlowStep[]) => void;
   isDraggingFromPalette: boolean;
   draggedNode: NodeConfig | null;
+  onConfigureStep?: (step: FlowStep) => void;
 }
 
 export const FlowCanvas = ({
@@ -19,6 +20,7 @@ export const FlowCanvas = ({
   onStepsChange,
   isDraggingFromPalette,
   draggedNode,
+  onConfigureStep,
 }: FlowCanvasProps) => {
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
 
@@ -166,6 +168,7 @@ export const FlowCanvas = ({
                       onUpdateStep={handleUpdateStep}
                       isDraggingFromPalette={isDraggingFromPalette}
                       draggedNode={draggedNode}
+                      onConfigureStep={onConfigureStep}
                     />
                   </Reorder.Item>
                 ) : (
@@ -175,6 +178,7 @@ export const FlowCanvas = ({
                     isFirst={index === 0}
                     isLast={index === steps.length - 1}
                     onRemove={handleRemoveStep}
+                    onConfigure={onConfigureStep}
                   />
                 )}
 
