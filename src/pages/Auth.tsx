@@ -69,7 +69,9 @@ const Auth = () => {
       if (mode === "signin") {
         const { error } = await signIn(email, password);
         if (error) {
-          if (error.message.includes("Invalid login credentials")) {
+          if (error.message === "Failed to fetch") {
+            toast.error("Unable to connect to the server. Please check your internet connection and try again.");
+          } else if (error.message.includes("Invalid login credentials")) {
             toast.error("Invalid email or password");
           } else {
             toast.error(error.message);
@@ -80,7 +82,9 @@ const Auth = () => {
       } else if (mode === "signup") {
         const { error } = await signUp(email, password);
         if (error) {
-          if (error.message.includes("already registered")) {
+          if (error.message === "Failed to fetch") {
+            toast.error("Unable to connect to the server. Please check your internet connection and try again.");
+          } else if (error.message.includes("already registered")) {
             toast.error("This email is already registered. Please sign in instead.");
           } else {
             toast.error(error.message);
@@ -91,12 +95,18 @@ const Auth = () => {
       } else if (mode === "forgot") {
         const { error } = await resetPassword(email);
         if (error) {
-          toast.error(error.message);
+          if (error.message === "Failed to fetch") {
+            toast.error("Unable to connect to the server. Please check your internet connection and try again.");
+          } else {
+            toast.error(error.message);
+          }
         } else {
           toast.success("Password reset email sent! Check your inbox.");
           setMode("signin");
         }
       }
+    } catch (err) {
+      toast.error("Something went wrong. Please check your connection and try again.");
     } finally {
       setIsLoading(false);
     }
