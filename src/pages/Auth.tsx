@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { z } from "zod";
-import { Mail, Lock, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, ArrowLeft, Eye, EyeOff, RefreshCw, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,8 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; confirmPassword?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [networkError, setNetworkError] = useState(false);
+  const [retryCountdown, setRetryCountdown] = useState(0);
 
   const { signIn, signUp, resetPassword, user } = useAuth();
   const navigate = useNavigate();
@@ -34,6 +36,22 @@ const Auth = () => {
       navigate(from, { replace: true });
     }
   }, [user, navigate, from]);
+
+  // Auto-retry countdown
+  useEffect(() => {
+    if (retryCountdown <= 0) return;
+    const timer = setTimeout(() => {
+      setRetryCountdown((c) => c - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [retryCountdown]);
+
+  // Auto-retry when countdown hits 0
+  useEffect(() => {
+    if (retryCountdown === 0 && networkError) {
+      handleRetry();
+    }
+  }, [retryCountdown]);
 
   const validateForm = () => {
     const newErrors: typeof errors = {};
@@ -58,55 +76,82 @@ const Auth = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const isNetworkError = (error: Error | null) =>
+    error?.message === "Failed to fetch" || error?.message?.includes("NetworkError");
+
+  const performAuth = async () => {
+    if (mode === "signin") {
+      const { error } = await signIn(email, password);
+      if (error && !isNetworkError(error)) {
+        if (error.message.includes("Invalid login credentials")) {
+          toast.error("Invalid email or password");
+        } else {
+          toast.error(error.message);
+        }
+      } else if (!error) {
+        toast.success("Welcome back!");
+      }
+      return error;
+    } else if (mode === "signup") {
+      const { error } = await signUp(email, password);
+      if (error && !isNetworkError(error)) {
+        if (error.message.includes("already registered")) {
+          toast.error("This email is already registered. Please sign in instead.");
+        } else {
+          toast.error(error.message);
+        }
+      } else if (!error) {
+        toast.success("Account created successfully!");
+      }
+      return error;
+    } else {
+      const { error } = await resetPassword(email);
+      if (error && !isNetworkError(error)) {
+        toast.error(error.message);
+      } else if (!error) {
+        toast.success("Password reset email sent! Check your inbox.");
+        setMode("signin");
+      }
+      return error;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
 
     setIsLoading(true);
+    setNetworkError(false);
+    setRetryCountdown(0);
 
     try {
-      if (mode === "signin") {
-        const { error } = await signIn(email, password);
-        if (error) {
-          if (error.message === "Failed to fetch") {
-            toast.error("Unable to connect to the server. Please check your internet connection and try again.");
-          } else if (error.message.includes("Invalid login credentials")) {
-            toast.error("Invalid email or password");
-          } else {
-            toast.error(error.message);
-          }
-        } else {
-          toast.success("Welcome back!");
-        }
-      } else if (mode === "signup") {
-        const { error } = await signUp(email, password);
-        if (error) {
-          if (error.message === "Failed to fetch") {
-            toast.error("Unable to connect to the server. Please check your internet connection and try again.");
-          } else if (error.message.includes("already registered")) {
-            toast.error("This email is already registered. Please sign in instead.");
-          } else {
-            toast.error(error.message);
-          }
-        } else {
-          toast.success("Account created successfully!");
-        }
-      } else if (mode === "forgot") {
-        const { error } = await resetPassword(email);
-        if (error) {
-          if (error.message === "Failed to fetch") {
-            toast.error("Unable to connect to the server. Please check your internet connection and try again.");
-          } else {
-            toast.error(error.message);
-          }
-        } else {
-          toast.success("Password reset email sent! Check your inbox.");
-          setMode("signin");
-        }
+      const error = await performAuth();
+      if (error && isNetworkError(error)) {
+        setNetworkError(true);
+        setRetryCountdown(5);
       }
-    } catch (err) {
-      toast.error("Something went wrong. Please check your connection and try again.");
+    } catch {
+      setNetworkError(true);
+      setRetryCountdown(5);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRetry = async () => {
+    setIsLoading(true);
+    setNetworkError(false);
+    setRetryCountdown(0);
+
+    try {
+      const error = await performAuth();
+      if (error && isNetworkError(error)) {
+        setNetworkError(true);
+        toast.error("Still unable to connect. Please check your internet connection.");
+      }
+    } catch {
+      setNetworkError(true);
+      toast.error("Still unable to connect. Please check your internet connection.");
     } finally {
       setIsLoading(false);
     }
@@ -231,6 +276,40 @@ const Auth = () => {
               >
                 Forgot password?
               </button>
+            )}
+
+            {networkError && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-3"
+              >
+                <div className="flex items-center gap-2 text-destructive">
+                  <WifiOff className="w-4 h-4" />
+                  <span className="text-sm font-medium">Connection failed</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Unable to reach the server. Check your internet connection.
+                </p>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRetry}
+                    disabled={isLoading}
+                    className="gap-2"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isLoading ? "animate-spin" : ""}`} />
+                    Retry now
+                  </Button>
+                  {retryCountdown > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      Auto-retrying in {retryCountdown}s
+                    </span>
+                  )}
+                </div>
+              </motion.div>
             )}
 
             <Button type="submit" variant="hero" className="w-full" size="lg" disabled={isLoading}>
