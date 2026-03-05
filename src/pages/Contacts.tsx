@@ -154,6 +154,8 @@ const Contacts = () => {
           first_name: c.first_name || null,
           last_name: c.last_name || null,
           company: c.company || null,
+          country: c.country || null,
+          timezone: c.timezone || (c.country ? getTimezoneForCountry(c.country) : null),
           user_id: user!.id,
         }))
       );
