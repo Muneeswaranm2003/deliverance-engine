@@ -579,6 +579,7 @@ const Contacts = () => {
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {format(new Date(contact.created_at), "MMM d, yyyy")}
                   </TableCell>
