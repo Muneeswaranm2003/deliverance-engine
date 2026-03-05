@@ -54,6 +54,11 @@ interface CSVContact {
   first_name?: string;
   last_name?: string;
   company?: string;
+  country?: string;
+  timezone?: string;
+}
+  last_name?: string;
+  company?: string;
 }
 
 type Contact = Tables<"contacts">;
