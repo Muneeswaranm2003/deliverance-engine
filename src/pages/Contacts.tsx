@@ -72,6 +72,8 @@ const Contacts = () => {
     first_name: "",
     last_name: "",
     company: "",
+    country: "",
+    timezone: "",
   });
   const { data: contacts, isLoading } = useQuery({
     queryKey: ["contacts"],
