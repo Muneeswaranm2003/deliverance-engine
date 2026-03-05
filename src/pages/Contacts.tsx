@@ -42,7 +42,10 @@ import {
   Pencil,
   Upload,
   FileSpreadsheet,
+  Globe,
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { countries, timezoneOptions, getTimezoneForCountry } from "@/lib/countryTimezones";
 import { toast } from "@/hooks/use-toast";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -69,6 +72,8 @@ const Contacts = () => {
     first_name: "",
     last_name: "",
     company: "",
+    country: "",
+    timezone: "",
   });
   const { data: contacts, isLoading } = useQuery({
     queryKey: ["contacts"],
@@ -161,7 +166,7 @@ const Contacts = () => {
   });
 
   const resetForm = () => {
-    setFormData({ email: "", first_name: "", last_name: "", company: "" });
+    setFormData({ email: "", first_name: "", last_name: "", company: "", country: "", timezone: "" });
   };
 
   const parseCSV = (text: string): CSVContact[] => {
@@ -252,6 +257,8 @@ const Contacts = () => {
       first_name: contact.first_name || "",
       last_name: contact.last_name || "",
       company: contact.company || "",
+      country: (contact as any).country || "",
+      timezone: (contact as any).timezone || "",
     });
     setIsDialogOpen(true);
   };
@@ -396,6 +403,43 @@ const Contacts = () => {
                     onChange={(e) => setFormData({ ...formData, company: e.target.value })}
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Country</Label>
+                    <Select
+                      value={formData.country}
+                      onValueChange={(val) => {
+                        const autoTz = getTimezoneForCountry(val);
+                        setFormData({ ...formData, country: val, timezone: autoTz || formData.timezone });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countries.map((c) => (
+                          <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Timezone</Label>
+                    <Select
+                      value={formData.timezone}
+                      onValueChange={(val) => setFormData({ ...formData, timezone: val })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Auto-detected" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {timezoneOptions.map((tz) => (
+                          <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 <div className="flex justify-end gap-3 pt-4">
                   <Button
                     type="button"
@@ -482,6 +526,7 @@ const Contacts = () => {
               <TableRow className="hover:bg-transparent border-border">
                 <TableHead className="text-muted-foreground">Contact</TableHead>
                 <TableHead className="text-muted-foreground">Company</TableHead>
+                <TableHead className="text-muted-foreground">Country</TableHead>
                 <TableHead className="text-muted-foreground">Added</TableHead>
                 <TableHead className="text-muted-foreground w-[50px]"></TableHead>
               </TableRow>
@@ -520,6 +565,16 @@ const Contacts = () => {
                       <span className="flex items-center gap-1.5 text-muted-foreground">
                         <Building className="w-3.5 h-3.5" />
                         {contact.company}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {(contact as any).country ? (
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <Globe className="w-3.5 h-3.5" />
+                        {countries.find(c => c.code === (contact as any).country)?.name || (contact as any).country}
                       </span>
                     ) : (
                       <span className="text-muted-foreground">—</span>
