@@ -570,6 +570,15 @@ const Contacts = () => {
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
+                  <TableCell>
+                    {(contact as any).country ? (
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <Globe className="w-3.5 h-3.5" />
+                        {countries.find(c => c.code === (contact as any).country)?.name || (contact as any).country}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   <TableCell className="text-muted-foreground">
                     {format(new Date(contact.created_at), "MMM d, yyyy")}
                   </TableCell>
