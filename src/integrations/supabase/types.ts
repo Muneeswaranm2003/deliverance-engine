@@ -260,6 +260,7 @@ export type Database = {
       contacts: {
         Row: {
           company: string | null
+          country: string | null
           created_at: string
           email: string
           engagement_score: number | null
@@ -274,11 +275,13 @@ export type Database = {
           suppressed: boolean | null
           suppressed_at: string | null
           suppression_reason: string | null
+          timezone: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           company?: string | null
+          country?: string | null
           created_at?: string
           email: string
           engagement_score?: number | null
@@ -293,11 +296,13 @@ export type Database = {
           suppressed?: boolean | null
           suppressed_at?: string | null
           suppression_reason?: string | null
+          timezone?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           company?: string | null
+          country?: string | null
           created_at?: string
           email?: string
           engagement_score?: number | null
@@ -312,6 +317,7 @@ export type Database = {
           suppressed?: boolean | null
           suppressed_at?: string | null
           suppression_reason?: string | null
+          timezone?: string | null
           updated_at?: string
           user_id?: string
         }
