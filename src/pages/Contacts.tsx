@@ -346,7 +346,7 @@ const Contacts = () => {
                   )}
                 </Button>
                 <p className="text-xs text-muted-foreground mt-4">
-                  CSV should have columns: email (required), first_name, last_name, company
+                  CSV should have columns: email (required), first_name, last_name, company, country, timezone
                 </p>
               </div>
             </DialogContent>
