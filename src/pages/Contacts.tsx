@@ -403,6 +403,43 @@ const Contacts = () => {
                     onChange={(e) => setFormData({ ...formData, company: e.target.value })}
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Country</Label>
+                    <Select
+                      value={formData.country}
+                      onValueChange={(val) => {
+                        const autoTz = getTimezoneForCountry(val);
+                        setFormData({ ...formData, country: val, timezone: autoTz || formData.timezone });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countries.map((c) => (
+                          <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Timezone</Label>
+                    <Select
+                      value={formData.timezone}
+                      onValueChange={(val) => setFormData({ ...formData, timezone: val })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Auto-detected" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {timezoneOptions.map((tz) => (
+                          <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 <div className="flex justify-end gap-3 pt-4">
                   <Button
                     type="button"
