@@ -54,6 +54,8 @@ interface CSVContact {
   first_name?: string;
   last_name?: string;
   company?: string;
+  country?: string;
+  timezone?: string;
 }
 
 type Contact = Tables<"contacts">;
@@ -149,6 +151,8 @@ const Contacts = () => {
           first_name: c.first_name || null,
           last_name: c.last_name || null,
           company: c.company || null,
+          country: c.country || null,
+          timezone: c.timezone || (c.country ? getTimezoneForCountry(c.country) : null),
           user_id: user!.id,
         }))
       );
@@ -178,6 +182,8 @@ const Contacts = () => {
     const firstNameIndex = headers.findIndex((h) => h.includes("first") || h === "firstname" || h === "first_name");
     const lastNameIndex = headers.findIndex((h) => h.includes("last") || h === "lastname" || h === "last_name");
     const companyIndex = headers.findIndex((h) => h.includes("company") || h.includes("organization"));
+    const countryIndex = headers.findIndex((h) => h === "country" || h === "country_code");
+    const timezoneIndex = headers.findIndex((h) => h === "timezone" || h === "tz" || h === "time_zone");
 
     if (emailIndex === -1) {
       toast({
@@ -198,6 +204,8 @@ const Contacts = () => {
           first_name: firstNameIndex !== -1 ? values[firstNameIndex] : undefined,
           last_name: lastNameIndex !== -1 ? values[lastNameIndex] : undefined,
           company: companyIndex !== -1 ? values[companyIndex] : undefined,
+          country: countryIndex !== -1 ? values[countryIndex]?.toUpperCase() : undefined,
+          timezone: timezoneIndex !== -1 ? values[timezoneIndex] : undefined,
         });
       }
     }
@@ -338,7 +346,7 @@ const Contacts = () => {
                   )}
                 </Button>
                 <p className="text-xs text-muted-foreground mt-4">
-                  CSV should have columns: email (required), first_name, last_name, company
+                  CSV should have columns: email (required), first_name, last_name, company, country, timezone
                 </p>
               </div>
             </DialogContent>
