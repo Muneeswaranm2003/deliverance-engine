@@ -166,7 +166,7 @@ const Contacts = () => {
   });
 
   const resetForm = () => {
-    setFormData({ email: "", first_name: "", last_name: "", company: "" });
+    setFormData({ email: "", first_name: "", last_name: "", company: "", country: "", timezone: "" });
   };
 
   const parseCSV = (text: string): CSVContact[] => {
