@@ -526,6 +526,7 @@ const Contacts = () => {
               <TableRow className="hover:bg-transparent border-border">
                 <TableHead className="text-muted-foreground">Contact</TableHead>
                 <TableHead className="text-muted-foreground">Company</TableHead>
+                <TableHead className="text-muted-foreground">Country</TableHead>
                 <TableHead className="text-muted-foreground">Added</TableHead>
                 <TableHead className="text-muted-foreground w-[50px]"></TableHead>
               </TableRow>
