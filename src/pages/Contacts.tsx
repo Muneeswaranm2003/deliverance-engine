@@ -581,7 +581,13 @@ const Contacts = () => {
                   <TableCell>
                     {(contact as any).country ? (
                       <span className="flex items-center gap-1.5 text-muted-foreground">
-                        <Globe className="w-3.5 h-3.5" />
+                        <span className="text-base leading-none">
+                          {(contact as any).country
+                            .toUpperCase()
+                            .split("")
+                            .map((c: string) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
+                            .join("")}
+                        </span>
                         {countries.find(c => c.code === (contact as any).country)?.name || (contact as any).country}
                       </span>
                     ) : (
