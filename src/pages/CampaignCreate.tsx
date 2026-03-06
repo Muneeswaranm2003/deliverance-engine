@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import EmailTemplateEditor from "@/components/campaigns/EmailTemplateEditor";
 import RecipientSelector from "@/components/campaigns/RecipientSelector";
+import TimezoneDistribution from "@/components/campaigns/TimezoneDistribution";
 import SchedulingOptions from "@/components/campaigns/SchedulingOptions";
 import { SenderDomainSelector } from "@/components/campaigns/SenderDomainSelector";
 import { Card, CardContent } from "@/components/ui/card";
