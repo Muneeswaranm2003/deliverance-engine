@@ -492,6 +492,10 @@ const CampaignCreate = () => {
                   recipients={recipients}
                   onRecipientsChange={setRecipients}
                 />
+
+                <TimezoneDistribution
+                  recipientEmails={recipients.map((r) => r.email)}
+                />
               </div>
             )}
 
