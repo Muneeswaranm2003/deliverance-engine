@@ -146,6 +146,7 @@ const Contacts = () => {
 
   const importMutation = useMutation({
     mutationFn: async (contacts: CSVContact[]) => {
+      if (!user) throw new Error("You must be logged in to import contacts");
       const { error } = await supabase.from("contacts").insert(
         contacts.map((c) => ({
           email: c.email,
