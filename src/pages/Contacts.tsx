@@ -92,9 +92,10 @@ const Contacts = () => {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
+      if (!user) throw new Error("You must be logged in to create a contact");
       const { error } = await supabase.from("contacts").insert({
         ...data,
-        user_id: user!.id,
+        user_id: user.id,
       });
       if (error) throw error;
     },
