@@ -271,6 +271,7 @@ const Contacts = () => {
       first_name: contact.first_name || "",
       last_name: contact.last_name || "",
       company: contact.company || "",
+      job_title: (contact as any).job_title || "",
       country: (contact as any).country || "",
       timezone: (contact as any).timezone || "",
     });
