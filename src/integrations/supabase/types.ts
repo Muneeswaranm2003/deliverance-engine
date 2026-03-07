@@ -267,6 +267,7 @@ export type Database = {
           first_name: string | null
           id: string
           inactive_since: string | null
+          job_title: string | null
           last_engaged_at: string | null
           last_name: string | null
           last_reengagement_at: string | null
@@ -288,6 +289,7 @@ export type Database = {
           first_name?: string | null
           id?: string
           inactive_since?: string | null
+          job_title?: string | null
           last_engaged_at?: string | null
           last_name?: string | null
           last_reengagement_at?: string | null
@@ -309,6 +311,7 @@ export type Database = {
           first_name?: string | null
           id?: string
           inactive_since?: string | null
+          job_title?: string | null
           last_engaged_at?: string | null
           last_name?: string | null
           last_reengagement_at?: string | null

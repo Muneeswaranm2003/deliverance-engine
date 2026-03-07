@@ -54,6 +54,7 @@ interface CSVContact {
   first_name?: string;
   last_name?: string;
   company?: string;
+  job_title?: string;
   country?: string;
   timezone?: string;
 }
@@ -74,6 +75,7 @@ const Contacts = () => {
     first_name: "",
     last_name: "",
     company: "",
+    job_title: "",
     country: "",
     timezone: "",
   });
@@ -153,6 +155,7 @@ const Contacts = () => {
           first_name: c.first_name || null,
           last_name: c.last_name || null,
           company: c.company || null,
+          job_title: c.job_title || null,
           country: c.country || null,
           timezone: c.timezone || (c.country ? getTimezoneForCountry(c.country) : null),
           user_id: user.id,
@@ -172,7 +175,7 @@ const Contacts = () => {
   });
 
   const resetForm = () => {
-    setFormData({ email: "", first_name: "", last_name: "", company: "", country: "", timezone: "" });
+    setFormData({ email: "", first_name: "", last_name: "", company: "", job_title: "", country: "", timezone: "" });
   };
 
   const parseCSV = (text: string): CSVContact[] => {
@@ -184,6 +187,7 @@ const Contacts = () => {
     const firstNameIndex = headers.findIndex((h) => h.includes("first") || h === "firstname" || h === "first_name");
     const lastNameIndex = headers.findIndex((h) => h.includes("last") || h === "lastname" || h === "last_name");
     const companyIndex = headers.findIndex((h) => h.includes("company") || h.includes("organization"));
+    const jobTitleIndex = headers.findIndex((h) => h === "job_title" || h === "jobtitle" || h === "title" || h === "job title");
     const countryIndex = headers.findIndex((h) => h === "country" || h === "country_code");
     const timezoneIndex = headers.findIndex((h) => h === "timezone" || h === "tz" || h === "time_zone");
 
@@ -206,6 +210,7 @@ const Contacts = () => {
           first_name: firstNameIndex !== -1 ? values[firstNameIndex] : undefined,
           last_name: lastNameIndex !== -1 ? values[lastNameIndex] : undefined,
           company: companyIndex !== -1 ? values[companyIndex] : undefined,
+          job_title: jobTitleIndex !== -1 ? values[jobTitleIndex] : undefined,
           country: countryIndex !== -1 ? values[countryIndex]?.toUpperCase() : undefined,
           timezone: timezoneIndex !== -1 ? values[timezoneIndex] : undefined,
         });
@@ -267,6 +272,7 @@ const Contacts = () => {
       first_name: contact.first_name || "",
       last_name: contact.last_name || "",
       company: contact.company || "",
+      job_title: (contact as any).job_title || "",
       country: (contact as any).country || "",
       timezone: (contact as any).timezone || "",
     });
@@ -348,7 +354,7 @@ const Contacts = () => {
                   )}
                 </Button>
                 <p className="text-xs text-muted-foreground mt-4">
-                  CSV should have columns: email (required), first_name, last_name, company, country, timezone
+                  CSV should have columns: email (required), first_name, last_name, company, job_title, country, timezone
                 </p>
               </div>
             </DialogContent>
@@ -404,14 +410,25 @@ const Contacts = () => {
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="company">Company</Label>
-                  <Input
-                    id="company"
-                    placeholder="Acme Inc."
-                    value={formData.company}
-                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="company">Company</Label>
+                    <Input
+                      id="company"
+                      placeholder="Acme Inc."
+                      value={formData.company}
+                      onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="job_title">Job Title</Label>
+                    <Input
+                      id="job_title"
+                      placeholder="Marketing Manager"
+                      value={formData.job_title}
+                      onChange={(e) => setFormData({ ...formData, job_title: e.target.value })}
+                    />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -536,6 +553,7 @@ const Contacts = () => {
               <TableRow className="hover:bg-transparent border-border">
                 <TableHead className="text-muted-foreground">Contact</TableHead>
                 <TableHead className="text-muted-foreground">Company</TableHead>
+                <TableHead className="text-muted-foreground">Job Title</TableHead>
                 <TableHead className="text-muted-foreground">Country</TableHead>
                 <TableHead className="text-muted-foreground">Added</TableHead>
                 <TableHead className="text-muted-foreground w-[50px]"></TableHead>
@@ -576,6 +594,13 @@ const Contacts = () => {
                         <Building className="w-3.5 h-3.5" />
                         {contact.company}
                       </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {(contact as any).job_title ? (
+                      <span className="text-muted-foreground">{(contact as any).job_title}</span>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
