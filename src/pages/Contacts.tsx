@@ -54,6 +54,7 @@ interface CSVContact {
   first_name?: string;
   last_name?: string;
   company?: string;
+  job_title?: string;
   country?: string;
   timezone?: string;
 }
