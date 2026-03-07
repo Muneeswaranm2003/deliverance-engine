@@ -186,6 +186,7 @@ const Contacts = () => {
     const firstNameIndex = headers.findIndex((h) => h.includes("first") || h === "firstname" || h === "first_name");
     const lastNameIndex = headers.findIndex((h) => h.includes("last") || h === "lastname" || h === "last_name");
     const companyIndex = headers.findIndex((h) => h.includes("company") || h.includes("organization"));
+    const jobTitleIndex = headers.findIndex((h) => h === "job_title" || h === "jobtitle" || h === "title" || h === "job title");
     const countryIndex = headers.findIndex((h) => h === "country" || h === "country_code");
     const timezoneIndex = headers.findIndex((h) => h === "timezone" || h === "tz" || h === "time_zone");
 
