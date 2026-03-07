@@ -599,6 +599,13 @@ const Contacts = () => {
                     )}
                   </TableCell>
                   <TableCell>
+                    {(contact as any).job_title ? (
+                      <span className="text-muted-foreground">{(contact as any).job_title}</span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     {(contact as any).country ? (
                       <span className="flex items-center gap-1.5 text-muted-foreground">
                         <span className="text-base leading-none">
