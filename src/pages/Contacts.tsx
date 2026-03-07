@@ -92,9 +92,10 @@ const Contacts = () => {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
+      if (!user) throw new Error("You must be logged in to create a contact");
       const { error } = await supabase.from("contacts").insert({
         ...data,
-        user_id: user!.id,
+        user_id: user.id,
       });
       if (error) throw error;
     },
@@ -145,6 +146,7 @@ const Contacts = () => {
 
   const importMutation = useMutation({
     mutationFn: async (contacts: CSVContact[]) => {
+      if (!user) throw new Error("You must be logged in to import contacts");
       const { error } = await supabase.from("contacts").insert(
         contacts.map((c) => ({
           email: c.email,
@@ -153,7 +155,7 @@ const Contacts = () => {
           company: c.company || null,
           country: c.country || null,
           timezone: c.timezone || (c.country ? getTimezoneForCountry(c.country) : null),
-          user_id: user!.id,
+          user_id: user.id,
         }))
       );
       if (error) throw error;
