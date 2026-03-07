@@ -75,6 +75,7 @@ const Contacts = () => {
     first_name: "",
     last_name: "",
     company: "",
+    job_title: "",
     country: "",
     timezone: "",
   });
