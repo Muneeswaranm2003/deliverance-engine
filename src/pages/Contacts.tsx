@@ -155,7 +155,7 @@ const Contacts = () => {
           company: c.company || null,
           country: c.country || null,
           timezone: c.timezone || (c.country ? getTimezoneForCountry(c.country) : null),
-          user_id: user!.id,
+          user_id: user.id,
         }))
       );
       if (error) throw error;
