@@ -209,6 +209,7 @@ const Contacts = () => {
           first_name: firstNameIndex !== -1 ? values[firstNameIndex] : undefined,
           last_name: lastNameIndex !== -1 ? values[lastNameIndex] : undefined,
           company: companyIndex !== -1 ? values[companyIndex] : undefined,
+          job_title: jobTitleIndex !== -1 ? values[jobTitleIndex] : undefined,
           country: countryIndex !== -1 ? values[countryIndex]?.toUpperCase() : undefined,
           timezone: timezoneIndex !== -1 ? values[timezoneIndex] : undefined,
         });
