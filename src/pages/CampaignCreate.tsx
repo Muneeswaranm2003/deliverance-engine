@@ -370,10 +370,28 @@ const CampaignCreate = () => {
                     />
                   </div>
 
-                  <SenderDomainSelector
-                    selectedSenders={selectedSenders}
-                    onSelectedSendersChange={setSelectedSenders}
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="senderName">Sender Name</Label>
+                    <Input
+                      id="senderName"
+                      placeholder="e.g., John from Acme"
+                      value={senderName}
+                      onChange={(e) => setSenderName(e.target.value)}
+                      className="bg-secondary/50"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="senderEmail">Sender Email</Label>
+                    <Input
+                      id="senderEmail"
+                      type="email"
+                      placeholder="e.g., john@acme.com"
+                      value={senderEmail}
+                      onChange={(e) => setSenderEmail(e.target.value)}
+                      className="bg-secondary/50"
+                    />
+                  </div>
                 </div>
               </div>
             )}
