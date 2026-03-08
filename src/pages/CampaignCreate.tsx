@@ -11,7 +11,7 @@ import EmailTemplateEditor from "@/components/campaigns/EmailTemplateEditor";
 import RecipientSelector from "@/components/campaigns/RecipientSelector";
 import TimezoneDistribution from "@/components/campaigns/TimezoneDistribution";
 import SchedulingOptions from "@/components/campaigns/SchedulingOptions";
-import { SenderDomainSelector } from "@/components/campaigns/SenderDomainSelector";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -128,13 +128,6 @@ const CampaignCreate = () => {
   const [senderName, setSenderName] = useState("");
   const [senderEmail, setSenderEmail] = useState("");
   
-  // Selected sender domains
-  const [selectedSenders, setSelectedSenders] = useState<{
-    id: string;
-    order: number;
-    from_email: string;
-    from_name: string;
-  }[]>([]);
 
   // Email content
   const [subject, setSubject] = useState("");
@@ -158,8 +151,8 @@ const CampaignCreate = () => {
           toast({ title: "Campaign name is required", variant: "destructive" });
           return false;
         }
-        if (selectedSenders.length === 0) {
-          toast({ title: "Select at least one sender domain", variant: "destructive" });
+        if (!senderName.trim() || !senderEmail.trim()) {
+          toast({ title: "Sender name and email are required", variant: "destructive" });
           return false;
         }
         return true;
@@ -205,17 +198,14 @@ const CampaignCreate = () => {
 
     setIsSubmitting(true);
     try {
-      // Use the first selected sender as the primary (for backwards compatibility)
-      const primarySender = selectedSenders.sort((a, b) => a.order - b.order)[0];
-      
       // Create the campaign
       const { data: campaign, error: campaignError } = await supabase
         .from("campaigns")
         .insert({
           user_id: user.id,
           name: campaignName,
-          sender_name: primarySender?.from_name || senderName,
-          sender_email: primarySender?.from_email || senderEmail,
+          sender_name: senderName,
+          sender_email: senderEmail,
           subject,
           content,
           status: scheduleType === "now" ? "sending" : "scheduled",
@@ -233,23 +223,6 @@ const CampaignCreate = () => {
 
       if (campaignError) throw campaignError;
       
-      // Add selected sender domains to campaign
-      if (selectedSenders.length > 0) {
-        const senderInserts = selectedSenders.map((sender) => ({
-          campaign_id: campaign.id,
-          sender_domain_id: sender.id,
-          send_order: sender.order,
-        }));
-
-        const { error: senderError } = await supabase
-          .from("campaign_sender_domains")
-          .insert(senderInserts);
-
-        if (senderError) {
-          console.error("Error adding sender domains:", senderError);
-        }
-      }
-
       // Add recipients to campaign
       if (recipients.length > 0) {
         const recipientInserts = recipients.map((r) => ({
@@ -397,10 +370,28 @@ const CampaignCreate = () => {
                     />
                   </div>
 
-                  <SenderDomainSelector
-                    selectedSenders={selectedSenders}
-                    onSelectedSendersChange={setSelectedSenders}
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="senderName">Sender Name</Label>
+                    <Input
+                      id="senderName"
+                      placeholder="e.g., John from Acme"
+                      value={senderName}
+                      onChange={(e) => setSenderName(e.target.value)}
+                      className="bg-secondary/50"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="senderEmail">Sender Email</Label>
+                    <Input
+                      id="senderEmail"
+                      type="email"
+                      placeholder="e.g., john@acme.com"
+                      value={senderEmail}
+                      onChange={(e) => setSenderEmail(e.target.value)}
+                      className="bg-secondary/50"
+                    />
+                  </div>
                 </div>
               </div>
             )}
