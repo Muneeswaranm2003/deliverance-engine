@@ -219,6 +219,19 @@ export const ApiKeysManager = () => {
                   </SelectContent>
                 </Select>
               </div>
+              {newKey.provider === "custom" && (
+                <div className="space-y-2">
+                  <Label>API Endpoint URL</Label>
+                  <Input
+                    placeholder="https://api.yourprovider.com/v1/send"
+                    value={newKey.endpoint_url}
+                    onChange={(e) => setNewKey({ ...newKey, endpoint_url: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The endpoint URL where email send requests will be posted
+                  </p>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>API Key</Label>
                 <Input
