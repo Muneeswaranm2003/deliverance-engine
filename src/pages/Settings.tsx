@@ -118,7 +118,7 @@ const Settings = () => {
     </motion.div>
   );
 
-  if (isLoading || emailSettingsLoading) {
+  if (isLoading) {
     return (
       <AppLayout title="Settings" description="Manage your account preferences">
         <div className="flex items-center justify-center py-12">
