@@ -609,15 +609,6 @@ const Settings = () => {
           </div>
         </SettingsCard>
 
-        {/* Sender Domains Configuration */}
-        <SettingsCard
-          icon={AtSign}
-          title="Sender Domains"
-          description="Configure up to 5 sender domains in priority order (1, 2, 3...)"
-          delay={0.17}
-        >
-          <SenderDomainsManager />
-        </SettingsCard>
 
         {/* Security Settings */}
         <SettingsCard
