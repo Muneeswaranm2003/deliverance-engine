@@ -88,6 +88,7 @@ export const ApiKeysManager = () => {
         api_key: newKey.api_key,
         priority: nextPriority,
         daily_limit: newKey.daily_limit ? parseInt(newKey.daily_limit) : null,
+        endpoint_url: newKey.provider === "custom" ? newKey.endpoint_url || null : null,
       });
       if (error) throw error;
     },
