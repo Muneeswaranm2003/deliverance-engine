@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -25,16 +24,14 @@ import {
   Shield, 
   Bell, 
   Save, 
-  Server, 
   Key, 
   Globe, 
   CheckCircle,
   AlertCircle,
   Eye,
-  EyeOff,
-  AtSign
+  EyeOff
 } from "lucide-react";
-import { SenderDomainsManager } from "@/components/settings/SenderDomainsManager";
+
 import { toast } from "@/hooks/use-toast";
 
 const Settings = () => {
@@ -86,19 +83,7 @@ const Settings = () => {
   });
 
   // Email sending configuration state
-  const [emailProvider, setEmailProvider] = useState<"smtp" | "api">("api");
   const [showApiKey, setShowApiKey] = useState(false);
-  const [showSmtpPassword, setShowSmtpPassword] = useState(false);
-  
-  const [smtpConfig, setSmtpConfig] = useState({
-    host: "",
-    port: "587",
-    username: "",
-    password: "",
-    encryption: "tls",
-    fromEmail: "",
-    fromName: "",
-  });
 
   const [apiConfig, setApiConfig] = useState({
     provider: "resend",
@@ -120,21 +105,11 @@ const Settings = () => {
   // Load email settings when fetched
   useEffect(() => {
     if (emailSettings) {
-      setEmailProvider(emailSettings.provider_type as "smtp" | "api");
       setApiConfig({
         provider: emailSettings.api_provider || "resend",
         apiKey: emailSettings.api_key || "",
         fromEmail: emailSettings.api_from_email || "",
         fromName: emailSettings.api_from_name || "",
-      });
-      setSmtpConfig({
-        host: emailSettings.smtp_host || "",
-        port: String(emailSettings.smtp_port || 587),
-        username: emailSettings.smtp_username || "",
-        password: emailSettings.smtp_password || "",
-        encryption: emailSettings.smtp_encryption || "tls",
-        fromEmail: emailSettings.smtp_from_email || "",
-        fromName: emailSettings.smtp_from_name || "",
       });
       setIpConfig({
         dedicatedIp: emailSettings.use_dedicated_ip || false,
@@ -213,18 +188,11 @@ const Settings = () => {
     try {
       const settingsData = {
         user_id: user.id,
-        provider_type: emailProvider,
+        provider_type: "api" as const,
         api_provider: apiConfig.provider,
         api_key: apiConfig.apiKey,
         api_from_email: apiConfig.fromEmail,
         api_from_name: apiConfig.fromName,
-        smtp_host: smtpConfig.host,
-        smtp_port: parseInt(smtpConfig.port),
-        smtp_username: smtpConfig.username,
-        smtp_password: smtpConfig.password,
-        smtp_encryption: smtpConfig.encryption,
-        smtp_from_email: smtpConfig.fromEmail,
-        smtp_from_name: smtpConfig.fromName,
         use_dedicated_ip: ipConfig.dedicatedIp,
         ip_pool: ipConfig.ipPoolName,
         enable_ip_warmup: ipConfig.warmupEnabled,
@@ -433,7 +401,7 @@ const Settings = () => {
         <SettingsCard
           icon={Mail}
           title="Email Sending Configuration"
-          description="Configure SMTP, API, and IP settings for sending emails"
+          description="Configure API and IP settings for sending emails"
           delay={0.15}
         >
           <div className="space-y-6">
@@ -460,189 +428,78 @@ const Settings = () => {
               )}
             </div>
 
-            <Tabs value={emailProvider} onValueChange={(v) => setEmailProvider(v as "smtp" | "api")}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="api" className="gap-2">
-                  <Key className="w-4 h-4" />
-                  API
-                </TabsTrigger>
-                <TabsTrigger value="smtp" className="gap-2">
-                  <Server className="w-4 h-4" />
-                  SMTP
-                </TabsTrigger>
-              </TabsList>
+            {/* API Configuration */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Key className="w-4 h-4 text-primary" />
+                <h4 className="font-medium">API Configuration</h4>
+              </div>
 
-              {/* API Configuration */}
-              <TabsContent value="api" className="space-y-4 mt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="api-provider">Email Provider</Label>
-                  <Select 
-                    value={apiConfig.provider} 
-                    onValueChange={(v) => setApiConfig({ ...apiConfig, provider: v })}
+              <div className="space-y-2">
+                <Label htmlFor="api-provider">Email Provider</Label>
+                <Select 
+                  value={apiConfig.provider} 
+                  onValueChange={(v) => setApiConfig({ ...apiConfig, provider: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="resend">Resend</SelectItem>
+                    <SelectItem value="sendgrid">SendGrid</SelectItem>
+                    <SelectItem value="mailgun">Mailgun</SelectItem>
+                    <SelectItem value="ses">Amazon SES</SelectItem>
+                    <SelectItem value="postmark">Postmark</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="api-key">API Key</Label>
+                <div className="relative">
+                  <Input
+                    id="api-key"
+                    type={showApiKey ? "text" : "password"}
+                    placeholder="Enter your API key"
+                    value={apiConfig.apiKey}
+                    onChange={(e) => setApiConfig({ ...apiConfig, apiKey: e.target.value })}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="resend">Resend</SelectItem>
-                      <SelectItem value="sendgrid">SendGrid</SelectItem>
-                      <SelectItem value="mailgun">Mailgun</SelectItem>
-                      <SelectItem value="ses">Amazon SES</SelectItem>
-                      <SelectItem value="postmark">Postmark</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Get your API key from your email provider's dashboard
+                </p>
+              </div>
 
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="api-key">API Key</Label>
-                  <div className="relative">
-                    <Input
-                      id="api-key"
-                      type={showApiKey ? "text" : "password"}
-                      placeholder="Enter your API key"
-                      value={apiConfig.apiKey}
-                      onChange={(e) => setApiConfig({ ...apiConfig, apiKey: e.target.value })}
-                      className="pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Get your API key from your email provider's dashboard
-                  </p>
+                  <Label htmlFor="api-from-email">From Email</Label>
+                  <Input
+                    id="api-from-email"
+                    type="email"
+                    placeholder="noreply@yourdomain.com"
+                    value={apiConfig.fromEmail}
+                    onChange={(e) => setApiConfig({ ...apiConfig, fromEmail: e.target.value })}
+                  />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="api-from-email">From Email</Label>
-                    <Input
-                      id="api-from-email"
-                      type="email"
-                      placeholder="noreply@yourdomain.com"
-                      value={apiConfig.fromEmail}
-                      onChange={(e) => setApiConfig({ ...apiConfig, fromEmail: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="api-from-name">From Name</Label>
-                    <Input
-                      id="api-from-name"
-                      placeholder="Your Company"
-                      value={apiConfig.fromName}
-                      onChange={(e) => setApiConfig({ ...apiConfig, fromName: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </TabsContent>
-
-              {/* SMTP Configuration */}
-              <TabsContent value="smtp" className="space-y-4 mt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="smtp-host">SMTP Host</Label>
-                    <Input
-                      id="smtp-host"
-                      placeholder="smtp.example.com"
-                      value={smtpConfig.host}
-                      onChange={(e) => setSmtpConfig({ ...smtpConfig, host: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="smtp-port">Port</Label>
-                    <Select 
-                      value={smtpConfig.port} 
-                      onValueChange={(v) => setSmtpConfig({ ...smtpConfig, port: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select port" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="25">25 (Unencrypted)</SelectItem>
-                        <SelectItem value="465">465 (SSL)</SelectItem>
-                        <SelectItem value="587">587 (TLS)</SelectItem>
-                        <SelectItem value="2525">2525 (Alternative)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="smtp-username">Username</Label>
-                    <Input
-                      id="smtp-username"
-                      placeholder="SMTP username"
-                      value={smtpConfig.username}
-                      onChange={(e) => setSmtpConfig({ ...smtpConfig, username: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="smtp-password">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="smtp-password"
-                        type={showSmtpPassword ? "text" : "password"}
-                        placeholder="SMTP password"
-                        value={smtpConfig.password}
-                        onChange={(e) => setSmtpConfig({ ...smtpConfig, password: e.target.value })}
-                        className="pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowSmtpPassword(!showSmtpPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showSmtpPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
                 <div className="space-y-2">
-                  <Label htmlFor="smtp-encryption">Encryption</Label>
-                  <Select 
-                    value={smtpConfig.encryption} 
-                    onValueChange={(v) => setSmtpConfig({ ...smtpConfig, encryption: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select encryption" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      <SelectItem value="ssl">SSL</SelectItem>
-                      <SelectItem value="tls">TLS (Recommended)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="api-from-name">From Name</Label>
+                  <Input
+                    id="api-from-name"
+                    placeholder="Your Company"
+                    value={apiConfig.fromName}
+                    onChange={(e) => setApiConfig({ ...apiConfig, fromName: e.target.value })}
+                  />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="smtp-from-email">From Email</Label>
-                    <Input
-                      id="smtp-from-email"
-                      type="email"
-                      placeholder="noreply@yourdomain.com"
-                      value={smtpConfig.fromEmail}
-                      onChange={(e) => setSmtpConfig({ ...smtpConfig, fromEmail: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="smtp-from-name">From Name</Label>
-                    <Input
-                      id="smtp-from-name"
-                      placeholder="Your Company"
-                      value={smtpConfig.fromName}
-                      onChange={(e) => setSmtpConfig({ ...smtpConfig, fromName: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
+              </div>
+            </div>
 
             <Separator />
 
@@ -749,15 +606,6 @@ const Settings = () => {
           </div>
         </SettingsCard>
 
-        {/* Sender Domains Configuration */}
-        <SettingsCard
-          icon={AtSign}
-          title="Sender Domains"
-          description="Configure up to 5 sender domains in priority order (1, 2, 3...)"
-          delay={0.17}
-        >
-          <SenderDomainsManager />
-        </SettingsCard>
 
         {/* Security Settings */}
         <SettingsCard
