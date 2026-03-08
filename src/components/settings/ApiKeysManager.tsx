@@ -162,6 +162,44 @@ export const ApiKeysManager = () => {
     },
   });
 
+  const [testingKeyId, setTestingKeyId] = useState<string | null>(null);
+  
+  const testKeyMutation = useMutation({
+    mutationFn: async (keyId: string) => {
+      if (!user?.email) throw new Error("No user email");
+      setTestingKeyId(keyId);
+      
+      const { data, error } = await supabase.functions.invoke("send-email", {
+        body: {
+          to: user.email,
+          subject: "MailForge API Key Test",
+          html: `<div style="font-family: sans-serif; padding: 20px;">
+            <h2 style="color: #0ea5e9;">✅ API Key Test Successful!</h2>
+            <p>Your API key is working correctly. This test email was sent at ${new Date().toLocaleString()}.</p>
+            <p style="color: #666; font-size: 14px;">Sent by MailForge</p>
+          </div>`,
+          text: `API Key Test Successful! Your API key is working correctly. Sent at ${new Date().toLocaleString()}.`,
+          from_email: "test@resend.dev",
+          from_name: "MailForge Test",
+        },
+      });
+      
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Test failed");
+      return data;
+    },
+    onSuccess: () => {
+      toast({ title: "Test email sent!", description: `Check your inbox at ${user?.email}` });
+      setTestingKeyId(null);
+      queryClient.invalidateQueries({ queryKey: ["api_keys"] });
+    },
+    onError: (error) => {
+      toast({ title: "Test failed", description: error.message, variant: "destructive" });
+      setTestingKeyId(null);
+      queryClient.invalidateQueries({ queryKey: ["api_keys"] });
+    },
+  });
+
   const toggleVisibility = (id: string) => {
     setVisibleKeys((prev) => {
       const next = new Set(prev);
