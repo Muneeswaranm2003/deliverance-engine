@@ -32,6 +32,7 @@ import {
   AlertCircle,
   ArrowUp,
   ArrowDown,
+  Send,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
