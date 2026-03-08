@@ -621,6 +621,26 @@ const Contacts = () => {
                     )}
                   </TableCell>
                   <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {(contact as any).email_provider && (
+                        <Badge variant="secondary" className="text-xs font-normal">
+                          {(contact as any).email_provider}
+                        </Badge>
+                      )}
+                      {(contact as any).spf_status && (
+                        <Badge
+                          variant={(contact as any).spf_status === "pass" ? "default" : "destructive"}
+                          className="text-xs font-normal"
+                        >
+                          SPF: {(contact as any).spf_status}
+                        </Badge>
+                      )}
+                      {!(contact as any).email_provider && !(contact as any).spf_status && (
+                        <span className="text-muted-foreground text-xs">Analyzing…</span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
                     {(contact as any).country ? (
                       <span className="flex items-center gap-1.5 text-muted-foreground">
                         <span className="text-base leading-none">
