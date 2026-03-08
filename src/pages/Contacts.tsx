@@ -175,12 +175,13 @@ const Contacts = () => {
         }))
       );
       if (error) throw error;
-      return contacts.length;
+      return contacts.map((c) => c.email);
     },
-    onSuccess: (count) => {
+    onSuccess: (emails) => {
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
       setIsImportDialogOpen(false);
-      toast({ title: "Import successful", description: `Imported ${count} contacts` });
+      toast({ title: "Import successful", description: `Imported ${emails.length} contacts` });
+      analyzeEmails(emails);
     },
     onError: (error) => {
       toast({ title: "Error importing contacts", description: error.message, variant: "destructive" });
