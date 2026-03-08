@@ -151,8 +151,8 @@ const CampaignCreate = () => {
           toast({ title: "Campaign name is required", variant: "destructive" });
           return false;
         }
-        if (selectedSenders.length === 0) {
-          toast({ title: "Select at least one sender domain", variant: "destructive" });
+        if (!senderName.trim() || !senderEmail.trim()) {
+          toast({ title: "Sender name and email are required", variant: "destructive" });
           return false;
         }
         return true;
