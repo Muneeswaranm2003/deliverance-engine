@@ -8,30 +8,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { motion } from "framer-motion";
 import { 
   Loader2, 
   User, 
-  Mail, 
   Shield, 
   Bell, 
   Save, 
   Key, 
   Globe, 
-  CheckCircle,
-  AlertCircle,
-  Eye,
-  EyeOff
 } from "lucide-react";
-
+import { ApiKeysManager } from "@/components/settings/ApiKeysManager";
+import { IpPoolsManager } from "@/components/settings/IpPoolsManager";
 import { toast } from "@/hooks/use-toast";
 
 const Settings = () => {
@@ -54,23 +42,6 @@ const Settings = () => {
     enabled: !!user?.id,
   });
 
-  // Fetch email settings
-  const { data: emailSettings, isLoading: emailSettingsLoading } = useQuery({
-    queryKey: ["email_settings", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data, error } = await supabase
-        .from("email_settings")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
   const [formData, setFormData] = useState({
     full_name: "",
     email: "",
@@ -82,142 +53,6 @@ const Settings = () => {
     weeklyDigest: false,
   });
 
-  // Email sending configuration state
-  const [showApiKey, setShowApiKey] = useState(false);
-
-  const [apiConfig, setApiConfig] = useState({
-    provider: "resend",
-    apiKey: "",
-    fromEmail: "",
-    fromName: "",
-  });
-
-  const [ipConfig, setIpConfig] = useState({
-    dedicatedIp: false,
-    warmupEnabled: false,
-    warmupDailyLimit: "100",
-    ipPoolName: "",
-  });
-
-  const [emailConfigStatus, setEmailConfigStatus] = useState<"unconfigured" | "testing" | "configured">("unconfigured");
-  const [isSavingEmailConfig, setIsSavingEmailConfig] = useState(false);
-
-  // Load email settings when fetched
-  useEffect(() => {
-    if (emailSettings) {
-      setApiConfig({
-        provider: emailSettings.api_provider || "resend",
-        apiKey: emailSettings.api_key || "",
-        fromEmail: emailSettings.api_from_email || "",
-        fromName: emailSettings.api_from_name || "",
-      });
-      setIpConfig({
-        dedicatedIp: emailSettings.use_dedicated_ip || false,
-        warmupEnabled: emailSettings.enable_ip_warmup || false,
-        warmupDailyLimit: String(emailSettings.daily_warmup_limit || 100),
-        ipPoolName: emailSettings.ip_pool || "",
-      });
-      setEmailConfigStatus("configured");
-    }
-  }, [emailSettings]);
-
-  // Set up realtime subscription for email_settings
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const channel = supabase
-      .channel('email_settings_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'email_settings',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log('Email settings changed:', payload);
-          queryClient.invalidateQueries({ queryKey: ["email_settings", user.id] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id, queryClient]);
-
-  const testEmailConnection = async () => {
-    setEmailConfigStatus("testing");
-    
-    try {
-      const { data, error } = await supabase.functions.invoke("send-email", {
-        body: {
-          to: user?.email || "test@example.com",
-          subject: "Test Email - Configuration Verified",
-          html: "<h1>Email Configuration Test</h1><p>Your email settings are working correctly!</p>",
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data.success) {
-        setEmailConfigStatus("configured");
-        toast({ title: "Email configuration verified!", description: "Test email sent successfully." });
-      } else {
-        setEmailConfigStatus("unconfigured");
-        toast({ title: "Configuration test failed", description: data.error, variant: "destructive" });
-      }
-    } catch (error: any) {
-      setEmailConfigStatus("unconfigured");
-      toast({ 
-        title: "Configuration test failed", 
-        description: error.message || "Failed to test email configuration", 
-        variant: "destructive" 
-      });
-    }
-  };
-
-  const saveEmailConfig = async () => {
-    if (!user?.id) return;
-    
-    setIsSavingEmailConfig(true);
-    
-    try {
-      const settingsData = {
-        user_id: user.id,
-        provider_type: "api" as const,
-        api_provider: apiConfig.provider,
-        api_key: apiConfig.apiKey,
-        api_from_email: apiConfig.fromEmail,
-        api_from_name: apiConfig.fromName,
-        use_dedicated_ip: ipConfig.dedicatedIp,
-        ip_pool: ipConfig.ipPoolName,
-        enable_ip_warmup: ipConfig.warmupEnabled,
-        daily_warmup_limit: parseInt(ipConfig.warmupDailyLimit),
-      };
-
-      const { error } = await supabase
-        .from("email_settings")
-        .upsert(settingsData, { onConflict: "user_id" });
-
-      if (error) throw error;
-
-      setEmailConfigStatus("configured");
-      toast({ title: "Email configuration saved", description: "Your email sending settings have been updated." });
-      queryClient.invalidateQueries({ queryKey: ["email_settings", user.id] });
-    } catch (error: any) {
-      toast({ 
-        title: "Error saving configuration", 
-        description: error.message, 
-        variant: "destructive" 
-      });
-    } finally {
-      setIsSavingEmailConfig(false);
-    }
-  };
 
   // Update form when profile loads
   useEffect(() => {
@@ -283,7 +118,7 @@ const Settings = () => {
     </motion.div>
   );
 
-  if (isLoading || emailSettingsLoading) {
+  if (isLoading) {
     return (
       <AppLayout title="Settings" description="Manage your account preferences">
         <div className="flex items-center justify-center py-12">
@@ -397,216 +232,25 @@ const Settings = () => {
           </div>
         </SettingsCard>
 
-        {/* Email Sending Configuration */}
+        {/* API Keys Configuration */}
         <SettingsCard
-          icon={Mail}
-          title="Email Sending Configuration"
-          description="Configure API and IP settings for sending emails"
+          icon={Key}
+          title="API Keys"
+          description="Manage multiple API keys with rotation and failover"
           delay={0.15}
         >
-          <div className="space-y-6">
-            {/* Status Badge */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Status:</span>
-              {emailConfigStatus === "unconfigured" && (
-                <Badge variant="secondary" className="gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  Not Configured
-                </Badge>
-              )}
-              {emailConfigStatus === "testing" && (
-                <Badge className="gap-1 bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  Testing...
-                </Badge>
-              )}
-              {emailConfigStatus === "configured" && (
-                <Badge className="gap-1 bg-green-500/10 text-green-500 border-green-500/20">
-                  <CheckCircle className="w-3 h-3" />
-                  Configured
-                </Badge>
-              )}
-            </div>
-
-            {/* API Configuration */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Key className="w-4 h-4 text-primary" />
-                <h4 className="font-medium">API Configuration</h4>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="api-provider">Email Provider</Label>
-                <Select 
-                  value={apiConfig.provider} 
-                  onValueChange={(v) => setApiConfig({ ...apiConfig, provider: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select provider" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="resend">Resend</SelectItem>
-                    <SelectItem value="sendgrid">SendGrid</SelectItem>
-                    <SelectItem value="mailgun">Mailgun</SelectItem>
-                    <SelectItem value="ses">Amazon SES</SelectItem>
-                    <SelectItem value="postmark">Postmark</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="api-key">API Key</Label>
-                <div className="relative">
-                  <Input
-                    id="api-key"
-                    type={showApiKey ? "text" : "password"}
-                    placeholder="Enter your API key"
-                    value={apiConfig.apiKey}
-                    onChange={(e) => setApiConfig({ ...apiConfig, apiKey: e.target.value })}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Get your API key from your email provider's dashboard
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="api-from-email">From Email</Label>
-                  <Input
-                    id="api-from-email"
-                    type="email"
-                    placeholder="noreply@yourdomain.com"
-                    value={apiConfig.fromEmail}
-                    onChange={(e) => setApiConfig({ ...apiConfig, fromEmail: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="api-from-name">From Name</Label>
-                  <Input
-                    id="api-from-name"
-                    placeholder="Your Company"
-                    value={apiConfig.fromName}
-                    onChange={(e) => setApiConfig({ ...apiConfig, fromName: e.target.value })}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* IP Configuration */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Globe className="w-4 h-4 text-primary" />
-                <h4 className="font-medium">IP Configuration</h4>
-              </div>
-
-              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-                <div>
-                  <p className="font-medium">Use Dedicated IP</p>
-                  <p className="text-sm text-muted-foreground">
-                    Send emails from a dedicated IP address
-                  </p>
-                </div>
-                <Switch
-                  checked={ipConfig.dedicatedIp}
-                  onCheckedChange={(checked) =>
-                    setIpConfig({ ...ipConfig, dedicatedIp: checked })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ip-pool">IP Pool Name</Label>
-                <Input
-                  id="ip-pool"
-                  placeholder="default (optional)"
-                  value={ipConfig.ipPoolName}
-                  onChange={(e) => setIpConfig({ ...ipConfig, ipPoolName: e.target.value })}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-                <div>
-                  <p className="font-medium">IP Warmup</p>
-                  <p className="text-sm text-muted-foreground">
-                    Gradually increase sending volume to build sender reputation
-                  </p>
-                </div>
-                <Switch
-                  checked={ipConfig.warmupEnabled}
-                  onCheckedChange={(checked) =>
-                    setIpConfig({ ...ipConfig, warmupEnabled: checked })
-                  }
-                />
-              </div>
-
-              {ipConfig.warmupEnabled && (
-                <div className="space-y-2">
-                  <Label htmlFor="warmup-limit">Daily Sending Limit During Warmup</Label>
-                  <Select 
-                    value={ipConfig.warmupDailyLimit} 
-                    onValueChange={(v) => setIpConfig({ ...ipConfig, warmupDailyLimit: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select daily limit" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="50">50 emails/day</SelectItem>
-                      <SelectItem value="100">100 emails/day</SelectItem>
-                      <SelectItem value="250">250 emails/day</SelectItem>
-                      <SelectItem value="500">500 emails/day</SelectItem>
-                      <SelectItem value="1000">1,000 emails/day</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-
-            <Separator />
-
-            {/* Actions */}
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={testEmailConnection}
-                disabled={emailConfigStatus === "testing" || !apiConfig.apiKey}
-                className="gap-2"
-              >
-                {emailConfigStatus === "testing" ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Mail className="w-4 h-4" />
-                )}
-                Test Connection
-              </Button>
-              <Button
-                variant="hero"
-                onClick={saveEmailConfig}
-                disabled={isSavingEmailConfig}
-                className="gap-2"
-              >
-                {isSavingEmailConfig ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4" />
-                )}
-                Save Configuration
-              </Button>
-            </div>
-          </div>
+          <ApiKeysManager />
         </SettingsCard>
 
-
+        {/* IP Pools & Reputation */}
+        <SettingsCard
+          icon={Globe}
+          title="IP Pools & Reputation"
+          description="Manage dedicated IPs, warmup schedules, and monitor reputation"
+          delay={0.2}
+        >
+          <IpPoolsManager />
+        </SettingsCard>
         {/* Security Settings */}
         <SettingsCard
           icon={Shield}
