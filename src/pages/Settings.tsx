@@ -31,7 +31,8 @@ import {
   Eye,
   EyeOff
 } from "lucide-react";
-
+import { ApiKeysManager } from "@/components/settings/ApiKeysManager";
+import { IpPoolsManager } from "@/components/settings/IpPoolsManager";
 import { toast } from "@/hooks/use-toast";
 
 const Settings = () => {
