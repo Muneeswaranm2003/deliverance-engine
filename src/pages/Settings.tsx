@@ -86,19 +86,7 @@ const Settings = () => {
   });
 
   // Email sending configuration state
-  const [emailProvider, setEmailProvider] = useState<"smtp" | "api">("api");
   const [showApiKey, setShowApiKey] = useState(false);
-  const [showSmtpPassword, setShowSmtpPassword] = useState(false);
-  
-  const [smtpConfig, setSmtpConfig] = useState({
-    host: "",
-    port: "587",
-    username: "",
-    password: "",
-    encryption: "tls",
-    fromEmail: "",
-    fromName: "",
-  });
 
   const [apiConfig, setApiConfig] = useState({
     provider: "resend",
