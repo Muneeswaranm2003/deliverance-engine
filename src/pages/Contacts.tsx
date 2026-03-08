@@ -92,6 +92,17 @@ const Contacts = () => {
     },
   });
 
+  const analyzeEmails = async (emails: string[]) => {
+    try {
+      await supabase.functions.invoke("analyze-email-domain", {
+        body: { emails },
+      });
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+    } catch (err) {
+      console.error("Email analysis failed:", err);
+    }
+  };
+
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       if (!user) throw new Error("You must be logged in to create a contact");
@@ -100,12 +111,14 @@ const Contacts = () => {
         user_id: user.id,
       });
       if (error) throw error;
+      return data.email;
     },
-    onSuccess: () => {
+    onSuccess: (email) => {
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
       setIsDialogOpen(false);
       resetForm();
       toast({ title: "Contact created successfully" });
+      analyzeEmails([email]);
     },
     onError: (error) => {
       toast({ title: "Error creating contact", description: error.message, variant: "destructive" });
@@ -162,12 +175,13 @@ const Contacts = () => {
         }))
       );
       if (error) throw error;
-      return contacts.length;
+      return contacts.map((c) => c.email);
     },
-    onSuccess: (count) => {
+    onSuccess: (emails) => {
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
       setIsImportDialogOpen(false);
-      toast({ title: "Import successful", description: `Imported ${count} contacts` });
+      toast({ title: "Import successful", description: `Imported ${emails.length} contacts` });
+      analyzeEmails(emails);
     },
     onError: (error) => {
       toast({ title: "Error importing contacts", description: error.message, variant: "destructive" });
@@ -554,6 +568,7 @@ const Contacts = () => {
                 <TableHead className="text-muted-foreground">Contact</TableHead>
                 <TableHead className="text-muted-foreground">Company</TableHead>
                 <TableHead className="text-muted-foreground">Job Title</TableHead>
+                <TableHead className="text-muted-foreground">Provider / SPF</TableHead>
                 <TableHead className="text-muted-foreground">Country</TableHead>
                 <TableHead className="text-muted-foreground">Added</TableHead>
                 <TableHead className="text-muted-foreground w-[50px]"></TableHead>
@@ -604,6 +619,26 @@ const Contacts = () => {
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {(contact as any).email_provider && (
+                        <Badge variant="secondary" className="text-xs font-normal">
+                          {(contact as any).email_provider}
+                        </Badge>
+                      )}
+                      {(contact as any).spf_status && (
+                        <Badge
+                          variant={(contact as any).spf_status === "pass" ? "default" : "destructive"}
+                          className="text-xs font-normal"
+                        >
+                          SPF: {(contact as any).spf_status}
+                        </Badge>
+                      )}
+                      {!(contact as any).email_provider && !(contact as any).spf_status && (
+                        <span className="text-muted-foreground text-xs">Analyzing…</span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {(contact as any).country ? (

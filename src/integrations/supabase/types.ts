@@ -263,6 +263,7 @@ export type Database = {
           country: string | null
           created_at: string
           email: string
+          email_provider: string | null
           engagement_score: number | null
           first_name: string | null
           id: string
@@ -272,6 +273,7 @@ export type Database = {
           last_name: string | null
           last_reengagement_at: string | null
           reengagement_attempts: number | null
+          spf_status: string | null
           status: string | null
           suppressed: boolean | null
           suppressed_at: string | null
@@ -285,6 +287,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           email: string
+          email_provider?: string | null
           engagement_score?: number | null
           first_name?: string | null
           id?: string
@@ -294,6 +297,7 @@ export type Database = {
           last_name?: string | null
           last_reengagement_at?: string | null
           reengagement_attempts?: number | null
+          spf_status?: string | null
           status?: string | null
           suppressed?: boolean | null
           suppressed_at?: string | null
@@ -307,6 +311,7 @@ export type Database = {
           country?: string | null
           created_at?: string
           email?: string
+          email_provider?: string | null
           engagement_score?: number | null
           first_name?: string | null
           id?: string
@@ -316,6 +321,7 @@ export type Database = {
           last_name?: string | null
           last_reengagement_at?: string | null
           reengagement_attempts?: number | null
+          spf_status?: string | null
           status?: string | null
           suppressed?: boolean | null
           suppressed_at?: string | null
