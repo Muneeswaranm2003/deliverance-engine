@@ -32,6 +32,7 @@ import {
   AlertCircle,
   ArrowUp,
   ArrowDown,
+  Send,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -47,6 +48,21 @@ interface ApiKey {
   emails_sent_today: number;
   last_error: string | null;
   last_used_at: string | null;
+}
+
+interface ApiKey {
+  id: string;
+  user_id: string;
+  provider: string;
+  api_key: string;
+  label: string;
+  priority: number;
+  is_active: boolean;
+  daily_limit: number | null;
+  emails_sent_today: number;
+  last_error: string | null;
+  last_used_at: string | null;
+  endpoint_url: string | null;
 }
 
 export const ApiKeysManager = () => {
@@ -142,6 +158,44 @@ export const ApiKeysManager = () => {
       }
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["api_keys"] });
+    },
+  });
+
+  const [testingKeyId, setTestingKeyId] = useState<string | null>(null);
+  
+  const testKeyMutation = useMutation({
+    mutationFn: async (keyId: string) => {
+      if (!user?.email) throw new Error("No user email");
+      setTestingKeyId(keyId);
+      
+      const { data, error } = await supabase.functions.invoke("send-email", {
+        body: {
+          to: user.email,
+          subject: "MailForge API Key Test",
+          html: `<div style="font-family: sans-serif; padding: 20px;">
+            <h2 style="color: #0ea5e9;">✅ API Key Test Successful!</h2>
+            <p>Your API key is working correctly. This test email was sent at ${new Date().toLocaleString()}.</p>
+            <p style="color: #666; font-size: 14px;">Sent by MailForge</p>
+          </div>`,
+          text: `API Key Test Successful! Your API key is working correctly. Sent at ${new Date().toLocaleString()}.`,
+          from_email: "test@resend.dev",
+          from_name: "MailForge Test",
+        },
+      });
+      
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Test failed");
+      return data;
+    },
+    onSuccess: () => {
+      toast({ title: "Test email sent!", description: `Check your inbox at ${user?.email}` });
+      setTestingKeyId(null);
+      queryClient.invalidateQueries({ queryKey: ["api_keys"] });
+    },
+    onError: (error) => {
+      toast({ title: "Test failed", description: error.message, variant: "destructive" });
+      setTestingKeyId(null);
       queryClient.invalidateQueries({ queryKey: ["api_keys"] });
     },
   });
@@ -333,6 +387,20 @@ export const ApiKeysManager = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5"
+                    disabled={!key.is_active || testingKeyId === key.id}
+                    onClick={() => testKeyMutation.mutate(key.id)}
+                  >
+                    {testingKeyId === key.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5" />
+                    )}
+                    Test
+                  </Button>
                   <Switch
                     checked={key.is_active}
                     onCheckedChange={(checked) =>
