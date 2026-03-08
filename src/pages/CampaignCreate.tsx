@@ -223,23 +223,6 @@ const CampaignCreate = () => {
 
       if (campaignError) throw campaignError;
       
-      // Add selected sender domains to campaign
-      if (selectedSenders.length > 0) {
-        const senderInserts = selectedSenders.map((sender) => ({
-          campaign_id: campaign.id,
-          sender_domain_id: sender.id,
-          send_order: sender.order,
-        }));
-
-        const { error: senderError } = await supabase
-          .from("campaign_sender_domains")
-          .insert(senderInserts);
-
-        if (senderError) {
-          console.error("Error adding sender domains:", senderError);
-        }
-      }
-
       // Add recipients to campaign
       if (recipients.length > 0) {
         const recipientInserts = recipients.map((r) => ({
