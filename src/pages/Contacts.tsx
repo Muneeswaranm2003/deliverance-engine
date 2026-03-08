@@ -92,6 +92,17 @@ const Contacts = () => {
     },
   });
 
+  const analyzeEmails = async (emails: string[]) => {
+    try {
+      await supabase.functions.invoke("analyze-email-domain", {
+        body: { emails },
+      });
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+    } catch (err) {
+      console.error("Email analysis failed:", err);
+    }
+  };
+
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       if (!user) throw new Error("You must be logged in to create a contact");
@@ -100,12 +111,14 @@ const Contacts = () => {
         user_id: user.id,
       });
       if (error) throw error;
+      return data.email;
     },
-    onSuccess: () => {
+    onSuccess: (email) => {
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
       setIsDialogOpen(false);
       resetForm();
       toast({ title: "Contact created successfully" });
+      analyzeEmails([email]);
     },
     onError: (error) => {
       toast({ title: "Error creating contact", description: error.message, variant: "destructive" });
