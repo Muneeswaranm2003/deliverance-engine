@@ -42,23 +42,6 @@ const Settings = () => {
     enabled: !!user?.id,
   });
 
-  // Fetch email settings
-  const { data: emailSettings, isLoading: emailSettingsLoading } = useQuery({
-    queryKey: ["email_settings", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data, error } = await supabase
-        .from("email_settings")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
   const [formData, setFormData] = useState({
     full_name: "",
     email: "",
@@ -69,71 +52,6 @@ const Settings = () => {
     campaignAlerts: true,
     weeklyDigest: false,
   });
-
-  // Email sending configuration state
-  const [showApiKey, setShowApiKey] = useState(false);
-
-  const [apiConfig, setApiConfig] = useState({
-    provider: "resend",
-    apiKey: "",
-    fromEmail: "",
-    fromName: "",
-  });
-
-  const [ipConfig, setIpConfig] = useState({
-    dedicatedIp: false,
-    warmupEnabled: false,
-    warmupDailyLimit: "100",
-    ipPoolName: "",
-  });
-
-  const [emailConfigStatus, setEmailConfigStatus] = useState<"unconfigured" | "testing" | "configured">("unconfigured");
-  const [isSavingEmailConfig, setIsSavingEmailConfig] = useState(false);
-
-  // Load email settings when fetched
-  useEffect(() => {
-    if (emailSettings) {
-      setApiConfig({
-        provider: emailSettings.api_provider || "resend",
-        apiKey: emailSettings.api_key || "",
-        fromEmail: emailSettings.api_from_email || "",
-        fromName: emailSettings.api_from_name || "",
-      });
-      setIpConfig({
-        dedicatedIp: emailSettings.use_dedicated_ip || false,
-        warmupEnabled: emailSettings.enable_ip_warmup || false,
-        warmupDailyLimit: String(emailSettings.daily_warmup_limit || 100),
-        ipPoolName: emailSettings.ip_pool || "",
-      });
-      setEmailConfigStatus("configured");
-    }
-  }, [emailSettings]);
-
-  // Set up realtime subscription for email_settings
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const channel = supabase
-      .channel('email_settings_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'email_settings',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log('Email settings changed:', payload);
-          queryClient.invalidateQueries({ queryKey: ["email_settings", user.id] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id, queryClient]);
 
   const testEmailConnection = async () => {
     setEmailConfigStatus("testing");
