@@ -34,7 +34,7 @@ import {
   EyeOff,
   AtSign
 } from "lucide-react";
-import { SenderDomainsManager } from "@/components/settings/SenderDomainsManager";
+
 import { toast } from "@/hooks/use-toast";
 
 const Settings = () => {
