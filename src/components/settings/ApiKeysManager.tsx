@@ -50,6 +50,21 @@ interface ApiKey {
   last_used_at: string | null;
 }
 
+interface ApiKey {
+  id: string;
+  user_id: string;
+  provider: string;
+  api_key: string;
+  label: string;
+  priority: number;
+  is_active: boolean;
+  daily_limit: number | null;
+  emails_sent_today: number;
+  last_error: string | null;
+  last_used_at: string | null;
+  endpoint_url: string | null;
+}
+
 export const ApiKeysManager = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
