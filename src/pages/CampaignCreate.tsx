@@ -128,13 +128,6 @@ const CampaignCreate = () => {
   const [senderName, setSenderName] = useState("");
   const [senderEmail, setSenderEmail] = useState("");
   
-  // Selected sender domains
-  const [selectedSenders, setSelectedSenders] = useState<{
-    id: string;
-    order: number;
-    from_email: string;
-    from_name: string;
-  }[]>([]);
 
   // Email content
   const [subject, setSubject] = useState("");
