@@ -108,21 +108,11 @@ const Settings = () => {
   // Load email settings when fetched
   useEffect(() => {
     if (emailSettings) {
-      setEmailProvider(emailSettings.provider_type as "smtp" | "api");
       setApiConfig({
         provider: emailSettings.api_provider || "resend",
         apiKey: emailSettings.api_key || "",
         fromEmail: emailSettings.api_from_email || "",
         fromName: emailSettings.api_from_name || "",
-      });
-      setSmtpConfig({
-        host: emailSettings.smtp_host || "",
-        port: String(emailSettings.smtp_port || 587),
-        username: emailSettings.smtp_username || "",
-        password: emailSettings.smtp_password || "",
-        encryption: emailSettings.smtp_encryption || "tls",
-        fromEmail: emailSettings.smtp_from_email || "",
-        fromName: emailSettings.smtp_from_name || "",
       });
       setIpConfig({
         dedicatedIp: emailSettings.use_dedicated_ip || false,
