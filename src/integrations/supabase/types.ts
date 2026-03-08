@@ -20,6 +20,7 @@ export type Database = {
           created_at: string
           daily_limit: number | null
           emails_sent_today: number
+          endpoint_url: string | null
           id: string
           is_active: boolean
           label: string
@@ -36,6 +37,7 @@ export type Database = {
           created_at?: string
           daily_limit?: number | null
           emails_sent_today?: number
+          endpoint_url?: string | null
           id?: string
           is_active?: boolean
           label?: string
@@ -52,6 +54,7 @@ export type Database = {
           created_at?: string
           daily_limit?: number | null
           emails_sent_today?: number
+          endpoint_url?: string | null
           id?: string
           is_active?: boolean
           label?: string

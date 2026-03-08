@@ -59,6 +59,7 @@ export const ApiKeysManager = () => {
     provider: "resend",
     api_key: "",
     daily_limit: "",
+    endpoint_url: "",
   });
 
   const { data: apiKeys, isLoading } = useQuery({
@@ -87,13 +88,14 @@ export const ApiKeysManager = () => {
         api_key: newKey.api_key,
         priority: nextPriority,
         daily_limit: newKey.daily_limit ? parseInt(newKey.daily_limit) : null,
+        endpoint_url: newKey.provider === "custom" ? newKey.endpoint_url || null : null,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["api_keys"] });
       setShowDialog(false);
-      setNewKey({ label: "", provider: "resend", api_key: "", daily_limit: "" });
+      setNewKey({ label: "", provider: "resend", api_key: "", daily_limit: "", endpoint_url: "" });
       toast({ title: "API key added" });
     },
     onError: (error) => {
@@ -218,6 +220,19 @@ export const ApiKeysManager = () => {
                   </SelectContent>
                 </Select>
               </div>
+              {newKey.provider === "custom" && (
+                <div className="space-y-2">
+                  <Label>API Endpoint URL</Label>
+                  <Input
+                    placeholder="https://api.yourprovider.com/v1/send"
+                    value={newKey.endpoint_url}
+                    onChange={(e) => setNewKey({ ...newKey, endpoint_url: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The endpoint URL where email send requests will be posted
+                  </p>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>API Key</Label>
                 <Input
