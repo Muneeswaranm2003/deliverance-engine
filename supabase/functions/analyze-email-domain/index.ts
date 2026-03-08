@@ -57,16 +57,22 @@ function checkSpf(txtRecords: string[]): string {
   );
   if (!spfRecord) return "missing";
 
-  // Basic validity checks
-  const hasAll = /[-~?+]all/.test(spfRecord);
-  if (!hasAll) return "invalid";
+  const lower = spfRecord.toLowerCase();
 
-  const hasFail = /-all/.test(spfRecord);
-  const hasSoftFail = /~all/.test(spfRecord);
+  // redirect= means SPF is delegated (valid configuration)
+  if (lower.includes("redirect=")) return "pass";
+
+  const hasFail = /-all/.test(lower);
+  const hasSoftFail = /~all/.test(lower);
+  const hasNeutral = /\?all/.test(lower);
+  const hasPass = /\+all/.test(lower);
 
   if (hasFail) return "pass";
   if (hasSoftFail) return "softfail";
-  return "neutral";
+  if (hasNeutral) return "neutral";
+  if (hasPass) return "permissive";
+
+  return "incomplete";
 }
 
 async function dnsLookup(
@@ -81,7 +87,7 @@ async function dnsLookup(
     const data = await response.json();
     if (data.Answer) {
       return data.Answer.map((a: { data: string }) =>
-        a.data.replace(/^"|"$/g, "")
+        a.data.replace(/"/g, "").trim()
       );
     }
     return [];
