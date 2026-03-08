@@ -240,10 +240,65 @@ const CampaignCreate = () => {
         if (recipientError) throw recipientError;
       }
 
+      // If sending now, trigger email sends
+      if (scheduleType === "now" && recipients.length > 0) {
+        const { data: session } = await supabase.auth.getSession();
+        const accessToken = session?.session?.access_token;
+
+        if (accessToken) {
+          let sentCount = 0;
+          
+          for (const recipient of recipients) {
+            // Replace template variables in content and subject
+            const personalizedContent = content
+              .replace(/\{\{firstName\}\}/g, recipient.firstName || "")
+              .replace(/\{\{lastName\}\}/g, recipient.lastName || "")
+              .replace(/\{\{company\}\}/g, recipient.company || "")
+              .replace(/\{\{email\}\}/g, recipient.email);
+            
+            const personalizedSubject = subject
+              .replace(/\{\{firstName\}\}/g, recipient.firstName || "")
+              .replace(/\{\{lastName\}\}/g, recipient.lastName || "")
+              .replace(/\{\{company\}\}/g, recipient.company || "");
+
+            try {
+              const { data, error } = await supabase.functions.invoke("send-email", {
+                body: {
+                  to: recipient.email,
+                  subject: personalizedSubject,
+                  html: `<pre style="font-family: sans-serif; white-space: pre-wrap;">${personalizedContent}</pre>`,
+                  text: personalizedContent,
+                  from_email: senderEmail,
+                  from_name: senderName,
+                  campaign_id: campaign.id,
+                },
+              });
+
+              if (!error && data?.success) {
+                sentCount++;
+              } else {
+                console.error(`Failed to send to ${recipient.email}:`, error || data?.error);
+              }
+            } catch (sendError) {
+              console.error(`Error sending to ${recipient.email}:`, sendError);
+            }
+          }
+
+          // Update campaign with sent count and status
+          await supabase
+            .from("campaigns")
+            .update({ 
+              sent_count: sentCount,
+              status: "sent"
+            })
+            .eq("id", campaign.id);
+        }
+      }
+
       toast({
         title: "Campaign created!",
         description: scheduleType === "now" 
-          ? "Your campaign is ready to send." 
+          ? `Emails sent to ${recipients.length} recipients.` 
           : "Your campaign has been scheduled.",
       });
       navigate("/campaigns");
