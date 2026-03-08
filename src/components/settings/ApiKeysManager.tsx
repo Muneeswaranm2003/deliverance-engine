@@ -94,7 +94,7 @@ export const ApiKeysManager = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["api_keys"] });
       setShowDialog(false);
-      setNewKey({ label: "", provider: "resend", api_key: "", daily_limit: "" });
+      setNewKey({ label: "", provider: "resend", api_key: "", daily_limit: "", endpoint_url: "" });
       toast({ title: "API key added" });
     },
     onError: (error) => {
