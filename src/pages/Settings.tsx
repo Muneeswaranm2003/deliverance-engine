@@ -404,7 +404,7 @@ const Settings = () => {
         <SettingsCard
           icon={Mail}
           title="Email Sending Configuration"
-          description="Configure SMTP, API, and IP settings for sending emails"
+          description="Configure API and IP settings for sending emails"
           delay={0.15}
         >
           <div className="space-y-6">
