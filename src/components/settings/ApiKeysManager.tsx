@@ -59,6 +59,7 @@ export const ApiKeysManager = () => {
     provider: "resend",
     api_key: "",
     daily_limit: "",
+    endpoint_url: "",
   });
 
   const { data: apiKeys, isLoading } = useQuery({
