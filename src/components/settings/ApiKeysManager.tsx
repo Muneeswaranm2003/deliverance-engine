@@ -387,6 +387,20 @@ export const ApiKeysManager = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5"
+                    disabled={!key.is_active || testingKeyId === key.id}
+                    onClick={() => testKeyMutation.mutate(key.id)}
+                  >
+                    {testingKeyId === key.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5" />
+                    )}
+                    Test
+                  </Button>
                   <Switch
                     checked={key.is_active}
                     onCheckedChange={(checked) =>
