@@ -8,28 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { motion } from "framer-motion";
 import { 
   Loader2, 
   User, 
-  Mail, 
   Shield, 
   Bell, 
   Save, 
   Key, 
   Globe, 
-  CheckCircle,
-  AlertCircle,
-  Eye,
-  EyeOff
 } from "lucide-react";
 import { ApiKeysManager } from "@/components/settings/ApiKeysManager";
 import { IpPoolsManager } from "@/components/settings/IpPoolsManager";
