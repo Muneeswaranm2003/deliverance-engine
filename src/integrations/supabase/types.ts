@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_keys: {
+        Row: {
+          api_key: string
+          created_at: string
+          daily_limit: number | null
+          emails_sent_today: number
+          id: string
+          is_active: boolean
+          label: string
+          last_error: string | null
+          last_reset_at: string | null
+          last_used_at: string | null
+          priority: number
+          provider: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_key: string
+          created_at?: string
+          daily_limit?: number | null
+          emails_sent_today?: number
+          id?: string
+          is_active?: boolean
+          label?: string
+          last_error?: string | null
+          last_reset_at?: string | null
+          last_used_at?: string | null
+          priority?: number
+          provider?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_key?: string
+          created_at?: string
+          daily_limit?: number | null
+          emails_sent_today?: number
+          id?: string
+          is_active?: boolean
+          label?: string
+          last_error?: string | null
+          last_reset_at?: string | null
+          last_used_at?: string | null
+          priority?: number
+          provider?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       automation_logs: {
         Row: {
           automation_id: string | null
@@ -527,6 +578,81 @@ export type Database = {
           updated_at?: string
           use_dedicated_ip?: boolean | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      ip_pools: {
+        Row: {
+          blacklist_status: string | null
+          bounce_rate: number | null
+          complaint_rate: number | null
+          created_at: string
+          description: string | null
+          id: string
+          ips: string[] | null
+          is_active: boolean
+          is_default: boolean | null
+          last_reputation_check: string | null
+          pool_name: string
+          reputation_score: number | null
+          total_bounced: number | null
+          total_complaints: number | null
+          total_sent: number | null
+          updated_at: string
+          user_id: string
+          warmup_daily_limit: number | null
+          warmup_enabled: boolean | null
+          warmup_phase: number | null
+          warmup_schedule: Json | null
+          warmup_start_date: string | null
+        }
+        Insert: {
+          blacklist_status?: string | null
+          bounce_rate?: number | null
+          complaint_rate?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          ips?: string[] | null
+          is_active?: boolean
+          is_default?: boolean | null
+          last_reputation_check?: string | null
+          pool_name: string
+          reputation_score?: number | null
+          total_bounced?: number | null
+          total_complaints?: number | null
+          total_sent?: number | null
+          updated_at?: string
+          user_id: string
+          warmup_daily_limit?: number | null
+          warmup_enabled?: boolean | null
+          warmup_phase?: number | null
+          warmup_schedule?: Json | null
+          warmup_start_date?: string | null
+        }
+        Update: {
+          blacklist_status?: string | null
+          bounce_rate?: number | null
+          complaint_rate?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          ips?: string[] | null
+          is_active?: boolean
+          is_default?: boolean | null
+          last_reputation_check?: string | null
+          pool_name?: string
+          reputation_score?: number | null
+          total_bounced?: number | null
+          total_complaints?: number | null
+          total_sent?: number | null
+          updated_at?: string
+          user_id?: string
+          warmup_daily_limit?: number | null
+          warmup_enabled?: boolean | null
+          warmup_phase?: number | null
+          warmup_schedule?: Json | null
+          warmup_start_date?: string | null
         }
         Relationships: []
       }
