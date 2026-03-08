@@ -194,7 +194,7 @@ export const ApiKeysManager = () => {
       queryClient.invalidateQueries({ queryKey: ["api_keys"] });
     },
     onError: (error) => {
-      toast({ title: "Test failed", description: error.message, variant: "destructive" });
+      toast({ title: "Test failed", description: parseProviderError(error.message), variant: "destructive" });
       setTestingKeyId(null);
       queryClient.invalidateQueries({ queryKey: ["api_keys"] });
     },
