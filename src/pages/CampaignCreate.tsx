@@ -198,17 +198,14 @@ const CampaignCreate = () => {
 
     setIsSubmitting(true);
     try {
-      // Use the first selected sender as the primary (for backwards compatibility)
-      const primarySender = selectedSenders.sort((a, b) => a.order - b.order)[0];
-      
       // Create the campaign
       const { data: campaign, error: campaignError } = await supabase
         .from("campaigns")
         .insert({
           user_id: user.id,
           name: campaignName,
-          sender_name: primarySender?.from_name || senderName,
-          sender_email: primarySender?.from_email || senderEmail,
+          sender_name: senderName,
+          sender_email: senderEmail,
           subject,
           content,
           status: scheduleType === "now" ? "sending" : "scheduled",
