@@ -206,6 +206,15 @@ export const ApiKeysManager = () => {
                     <SelectItem value="mailgun">Mailgun</SelectItem>
                     <SelectItem value="ses">Amazon SES</SelectItem>
                     <SelectItem value="postmark">Postmark</SelectItem>
+                    <SelectItem value="sparkpost">SparkPost</SelectItem>
+                    <SelectItem value="mandrill">Mandrill (Mailchimp)</SelectItem>
+                    <SelectItem value="sendinblue">Brevo (Sendinblue)</SelectItem>
+                    <SelectItem value="elastic_email">Elastic Email</SelectItem>
+                    <SelectItem value="smtp2go">SMTP2GO</SelectItem>
+                    <SelectItem value="socketlabs">SocketLabs</SelectItem>
+                    <SelectItem value="pepipost">Pepipost</SelectItem>
+                    <SelectItem value="mailjet">Mailjet</SelectItem>
+                    <SelectItem value="custom">Custom / Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
