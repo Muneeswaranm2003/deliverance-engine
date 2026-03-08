@@ -81,7 +81,7 @@ async function dnsLookup(
     const data = await response.json();
     if (data.Answer) {
       return data.Answer.map((a: { data: string }) =>
-        a.data.replace(/^"|"$/g, "")
+        a.data.replace(/"/g, "").trim()
       );
     }
     return [];
