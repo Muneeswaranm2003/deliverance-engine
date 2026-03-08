@@ -36,6 +36,32 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
+function parseProviderError(raw: string): string {
+  const lower = raw.toLowerCase();
+  // Try to extract nested JSON error
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.Error) return parsed.Error;
+    if (parsed?.errors?.[0]?.message) return parsed.errors[0].message;
+    if (parsed?.message) return parsed.message;
+  } catch {}
+  // Common pattern matching
+  if (lower.includes("authorization grant is invalid") || lower.includes("(401)"))
+    return "API key is invalid, expired, or revoked. Please generate a new key from your provider dashboard.";
+  if (lower.includes("testing purposes") || lower.includes("only send emails to"))
+    return "Your provider account is on a free/trial plan. Upgrade your plan or send only to verified recipients.";
+  if (lower.includes("domain") && lower.includes("not verified"))
+    return "Your sender domain is not verified. Verify it in your provider's dashboard first.";
+  if (lower.includes("rate limit") || lower.includes("too many requests"))
+    return "Rate limit reached. Wait a moment and try again, or check your provider's sending limits.";
+  if (lower.includes("insufficient") || lower.includes("payment") || lower.includes("billing"))
+    return "Billing issue with your provider account. Check your payment details.";
+  if (lower.includes("forbidden") || lower.includes("(403)"))
+    return "Access denied. Your API key may lack the required permissions (e.g., Mail Send).";
+  // Truncate very long messages
+  return raw.length > 200 ? raw.slice(0, 200) + "…" : raw;
+}
+
 interface ApiKey {
   id: string;
   user_id: string;
@@ -194,7 +220,7 @@ export const ApiKeysManager = () => {
       queryClient.invalidateQueries({ queryKey: ["api_keys"] });
     },
     onError: (error) => {
-      toast({ title: "Test failed", description: error.message, variant: "destructive" });
+      toast({ title: "Test failed", description: parseProviderError(error.message), variant: "destructive" });
       setTestingKeyId(null);
       queryClient.invalidateQueries({ queryKey: ["api_keys"] });
     },
