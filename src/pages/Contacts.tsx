@@ -568,6 +568,7 @@ const Contacts = () => {
                 <TableHead className="text-muted-foreground">Contact</TableHead>
                 <TableHead className="text-muted-foreground">Company</TableHead>
                 <TableHead className="text-muted-foreground">Job Title</TableHead>
+                <TableHead className="text-muted-foreground">Provider / SPF</TableHead>
                 <TableHead className="text-muted-foreground">Country</TableHead>
                 <TableHead className="text-muted-foreground">Added</TableHead>
                 <TableHead className="text-muted-foreground w-[50px]"></TableHead>
