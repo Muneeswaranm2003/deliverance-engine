@@ -24,14 +24,12 @@ import {
   Shield, 
   Bell, 
   Save, 
-  Server, 
   Key, 
   Globe, 
   CheckCircle,
   AlertCircle,
   Eye,
-  EyeOff,
-  AtSign
+  EyeOff
 } from "lucide-react";
 
 import { toast } from "@/hooks/use-toast";
