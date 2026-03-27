@@ -624,6 +624,12 @@ const Contacts = () => {
             Clear filters
           </Button>
         )}
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
       ) : !filteredContacts || filteredContacts.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
