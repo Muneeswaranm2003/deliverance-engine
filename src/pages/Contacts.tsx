@@ -65,6 +65,10 @@ const Contacts = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [engagementFilter, setEngagementFilter] = useState("all");
+  const [companyFilter, setCompanyFilter] = useState("all");
+  const [suppressedFilter, setSuppressedFilter] = useState("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
@@ -302,13 +306,40 @@ const Contacts = () => {
     }
   };
 
-  const filteredContacts = contacts?.filter(
-    (contact) =>
-      contact.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contact.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contact.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contact.company?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Get unique companies for filter
+  const uniqueCompanies = Array.from(
+    new Set(contacts?.map((c) => c.company).filter(Boolean) as string[])
+  ).sort();
+
+  const filteredContacts = contacts?.filter((contact) => {
+    // Status filter
+    if (statusFilter !== "all" && contact.status !== statusFilter) return false;
+    // Engagement filter
+    if (engagementFilter !== "all") {
+      const score = contact.engagement_score || 0;
+      if (engagementFilter === "high" && score < 70) return false;
+      if (engagementFilter === "medium" && (score < 40 || score >= 70)) return false;
+      if (engagementFilter === "low" && score >= 40) return false;
+    }
+    // Company filter
+    if (companyFilter !== "all" && contact.company !== companyFilter) return false;
+    // Suppressed filter
+    if (suppressedFilter !== "all") {
+      if (suppressedFilter === "yes" && !contact.suppressed) return false;
+      if (suppressedFilter === "no" && contact.suppressed) return false;
+    }
+    // Search filter
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const matches =
+        contact.email.toLowerCase().includes(q) ||
+        contact.first_name?.toLowerCase().includes(q) ||
+        contact.last_name?.toLowerCase().includes(q) ||
+        contact.company?.toLowerCase().includes(q);
+      if (!matches) return false;
+    }
+    return true;
+  });
 
   return (
     <AppLayout
@@ -524,9 +555,75 @@ const Contacts = () => {
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="gap-1.5 py-1.5 px-3">
             <Users className="w-3.5 h-3.5" />
-            {contacts?.length || 0} contacts
+            {filteredContacts?.length || 0} / {contacts?.length || 0} contacts
           </Badge>
         </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="bounced">Bounced</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={engagementFilter} onValueChange={setEngagementFilter}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Engagement" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Engagement</SelectItem>
+            <SelectItem value="high">High (70+)</SelectItem>
+            <SelectItem value="medium">Medium (40-69)</SelectItem>
+            <SelectItem value="low">Low (&lt;40)</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={companyFilter} onValueChange={setCompanyFilter}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Company" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Companies</SelectItem>
+            {uniqueCompanies.map((company) => (
+              <SelectItem key={company} value={company}>{company}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={suppressedFilter} onValueChange={setSuppressedFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Suppressed" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="yes">Suppressed</SelectItem>
+            <SelectItem value="no">Not Suppressed</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {(statusFilter !== "all" || engagementFilter !== "all" || companyFilter !== "all" || suppressedFilter !== "all") && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setStatusFilter("all");
+              setEngagementFilter("all");
+              setCompanyFilter("all");
+              setSuppressedFilter("all");
+            }}
+            className="text-muted-foreground"
+          >
+            Clear filters
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
