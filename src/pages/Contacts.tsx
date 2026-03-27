@@ -555,15 +555,75 @@ const Contacts = () => {
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="gap-1.5 py-1.5 px-3">
             <Users className="w-3.5 h-3.5" />
-            {contacts?.length || 0} contacts
+            {filteredContacts?.length || 0} / {contacts?.length || 0} contacts
           </Badge>
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="bounced">Bounced</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={engagementFilter} onValueChange={setEngagementFilter}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Engagement" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Engagement</SelectItem>
+            <SelectItem value="high">High (70+)</SelectItem>
+            <SelectItem value="medium">Medium (40-69)</SelectItem>
+            <SelectItem value="low">Low (&lt;40)</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={companyFilter} onValueChange={setCompanyFilter}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Company" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Companies</SelectItem>
+            {uniqueCompanies.map((company) => (
+              <SelectItem key={company} value={company}>{company}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={suppressedFilter} onValueChange={setSuppressedFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Suppressed" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="yes">Suppressed</SelectItem>
+            <SelectItem value="no">Not Suppressed</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {(statusFilter !== "all" || engagementFilter !== "all" || companyFilter !== "all" || suppressedFilter !== "all") && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setStatusFilter("all");
+              setEngagementFilter("all");
+              setCompanyFilter("all");
+              setSuppressedFilter("all");
+            }}
+            className="text-muted-foreground"
+          >
+            Clear filters
+          </Button>
+        )}
       ) : !filteredContacts || filteredContacts.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
