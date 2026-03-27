@@ -96,6 +96,37 @@ const Contacts = () => {
     },
   });
 
+  // Fetch latest email log per contact email for status columns
+  const { data: emailLogsMap } = useQuery({
+    queryKey: ["contact-email-logs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("email_logs")
+        .select("email, status, sent_at, delivered_at, opened_at, clicked_at, bounced_at, complaint_at, bounce_type")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      // Keep only the latest log per email
+      const map: Record<string, {
+        status: string;
+        sent_at: string | null;
+        delivered_at: string | null;
+        opened_at: string | null;
+        clicked_at: string | null;
+        bounced_at: string | null;
+        complaint_at: string | null;
+        bounce_type: string | null;
+      }> = {};
+      for (const log of data || []) {
+        if (!map[log.email]) {
+          map[log.email] = log;
+        }
+      }
+      return map;
+    },
+  });
+
   const analyzeEmails = async (emails: string[]) => {
     try {
       await supabase.functions.invoke("analyze-email-domain", {
@@ -664,7 +695,8 @@ const Contacts = () => {
               <TableRow className="hover:bg-transparent border-border">
                 <TableHead className="text-muted-foreground">Contact</TableHead>
                 <TableHead className="text-muted-foreground">Company</TableHead>
-                <TableHead className="text-muted-foreground">Job Title</TableHead>
+                <TableHead className="text-muted-foreground">Email Status</TableHead>
+                <TableHead className="text-muted-foreground">Last Sent</TableHead>
                 <TableHead className="text-muted-foreground">Provider / SPF</TableHead>
                 <TableHead className="text-muted-foreground">Country</TableHead>
                 <TableHead className="text-muted-foreground">Added</TableHead>
@@ -711,11 +743,46 @@ const Contacts = () => {
                     )}
                   </TableCell>
                   <TableCell>
-                    {(contact as any).job_title ? (
-                      <span className="text-muted-foreground">{(contact as any).job_title}</span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
+                    {(() => {
+                      const log = emailLogsMap?.[contact.email];
+                      if (!log) return <span className="text-muted-foreground text-xs">No sends</span>;
+                      
+                      // Determine the most meaningful status
+                      let label = "Sent";
+                      let variant: "default" | "secondary" | "destructive" | "outline" = "secondary";
+                      
+                      if (log.complaint_at) {
+                        label = "Unsubscribed";
+                        variant = "destructive";
+                      } else if (log.bounced_at) {
+                        label = log.bounce_type === "hard" ? "Hard Bounce" : "Soft Bounce";
+                        variant = "destructive";
+                      } else if (log.clicked_at) {
+                        label = "Clicked";
+                        variant = "default";
+                      } else if (log.opened_at) {
+                        label = "Opened";
+                        variant = "default";
+                      } else if (log.delivered_at) {
+                        label = "Delivered";
+                        variant = "outline";
+                      } else if (log.sent_at) {
+                        label = "Sent";
+                        variant = "secondary";
+                      } else {
+                        label = log.status === "failed" ? "Failed" : "Pending";
+                        variant = log.status === "failed" ? "destructive" : "secondary";
+                      }
+                      
+                      return <Badge variant={variant} className="text-xs font-normal">{label}</Badge>;
+                    })()}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {(() => {
+                      const log = emailLogsMap?.[contact.email];
+                      if (!log?.sent_at) return "—";
+                      return format(new Date(log.sent_at), "MMM d, yyyy");
+                    })()}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
