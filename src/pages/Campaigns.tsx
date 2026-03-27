@@ -63,6 +63,7 @@ const Campaigns = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data: campaigns, isLoading } = useQuery({
