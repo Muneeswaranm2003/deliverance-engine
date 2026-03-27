@@ -125,10 +125,29 @@ const Campaigns = () => {
             className="pl-10"
           />
         </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="draft">Draft</SelectItem>
+            <SelectItem value="scheduled">Scheduled</SelectItem>
+            <SelectItem value="sending">Sending</SelectItem>
+            <SelectItem value="sent">Sent</SelectItem>
+            <SelectItem value="paused">Paused</SelectItem>
+            <SelectItem value="cancelled">Cancelled</SelectItem>
+          </SelectContent>
+        </Select>
+        {statusFilter !== "all" && (
+          <Button variant="ghost" size="sm" onClick={() => setStatusFilter("all")} className="text-muted-foreground">
+            Clear
+          </Button>
+        )}
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="gap-1.5 py-1.5 px-3">
             <Send className="w-3.5 h-3.5" />
-            {campaigns?.length || 0} campaigns
+            {filteredCampaigns?.length || 0} / {campaigns?.length || 0} campaigns
           </Badge>
         </div>
       </div>
