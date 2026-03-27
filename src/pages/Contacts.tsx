@@ -306,13 +306,40 @@ const Contacts = () => {
     }
   };
 
-  const filteredContacts = contacts?.filter(
-    (contact) =>
-      contact.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contact.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contact.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contact.company?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Get unique companies for filter
+  const uniqueCompanies = Array.from(
+    new Set(contacts?.map((c) => c.company).filter(Boolean) as string[])
+  ).sort();
+
+  const filteredContacts = contacts?.filter((contact) => {
+    // Status filter
+    if (statusFilter !== "all" && contact.status !== statusFilter) return false;
+    // Engagement filter
+    if (engagementFilter !== "all") {
+      const score = contact.engagement_score || 0;
+      if (engagementFilter === "high" && score < 70) return false;
+      if (engagementFilter === "medium" && (score < 40 || score >= 70)) return false;
+      if (engagementFilter === "low" && score >= 40) return false;
+    }
+    // Company filter
+    if (companyFilter !== "all" && contact.company !== companyFilter) return false;
+    // Suppressed filter
+    if (suppressedFilter !== "all") {
+      if (suppressedFilter === "yes" && !contact.suppressed) return false;
+      if (suppressedFilter === "no" && contact.suppressed) return false;
+    }
+    // Search filter
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const matches =
+        contact.email.toLowerCase().includes(q) ||
+        contact.first_name?.toLowerCase().includes(q) ||
+        contact.last_name?.toLowerCase().includes(q) ||
+        contact.company?.toLowerCase().includes(q);
+      if (!matches) return false;
+    }
+    return true;
+  });
 
   return (
     <AppLayout
