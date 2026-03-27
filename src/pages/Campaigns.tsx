@@ -94,11 +94,14 @@ const Campaigns = () => {
     },
   });
 
-  const filteredCampaigns = campaigns?.filter(
-    (campaign) =>
-      campaign.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      campaign.subject.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCampaigns = campaigns?.filter((campaign) => {
+    if (statusFilter !== "all" && campaign.status !== statusFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return campaign.name.toLowerCase().includes(q) || campaign.subject.toLowerCase().includes(q);
+    }
+    return true;
+  });
 
   return (
     <AppLayout
