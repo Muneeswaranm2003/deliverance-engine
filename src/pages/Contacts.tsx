@@ -65,6 +65,10 @@ const Contacts = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [engagementFilter, setEngagementFilter] = useState("all");
+  const [companyFilter, setCompanyFilter] = useState("all");
+  const [suppressedFilter, setSuppressedFilter] = useState("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
