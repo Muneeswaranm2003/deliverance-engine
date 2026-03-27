@@ -695,7 +695,8 @@ const Contacts = () => {
               <TableRow className="hover:bg-transparent border-border">
                 <TableHead className="text-muted-foreground">Contact</TableHead>
                 <TableHead className="text-muted-foreground">Company</TableHead>
-                <TableHead className="text-muted-foreground">Job Title</TableHead>
+                <TableHead className="text-muted-foreground">Email Status</TableHead>
+                <TableHead className="text-muted-foreground">Last Sent</TableHead>
                 <TableHead className="text-muted-foreground">Provider / SPF</TableHead>
                 <TableHead className="text-muted-foreground">Country</TableHead>
                 <TableHead className="text-muted-foreground">Added</TableHead>
