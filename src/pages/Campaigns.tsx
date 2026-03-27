@@ -158,7 +158,7 @@ const Campaigns = () => {
       ) : (
         <div className="grid gap-4">
           {filteredCampaigns.map((campaign, index) => {
-            const status = statusConfig[campaign.status];
+            const status = statusConfig[campaign.status] || { label: campaign.status, icon: Clock, variant: "secondary" as const };
             const StatusIcon = status.icon;
 
             return (
