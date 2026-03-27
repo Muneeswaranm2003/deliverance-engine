@@ -96,6 +96,37 @@ const Contacts = () => {
     },
   });
 
+  // Fetch latest email log per contact email for status columns
+  const { data: emailLogsMap } = useQuery({
+    queryKey: ["contact-email-logs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("email_logs")
+        .select("email, status, sent_at, delivered_at, opened_at, clicked_at, bounced_at, complaint_at, bounce_type")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      // Keep only the latest log per email
+      const map: Record<string, {
+        status: string;
+        sent_at: string | null;
+        delivered_at: string | null;
+        opened_at: string | null;
+        clicked_at: string | null;
+        bounced_at: string | null;
+        complaint_at: string | null;
+        bounce_type: string | null;
+      }> = {};
+      for (const log of data || []) {
+        if (!map[log.email]) {
+          map[log.email] = log;
+        }
+      }
+      return map;
+    },
+  });
+
   const analyzeEmails = async (emails: string[]) => {
     try {
       await supabase.functions.invoke("analyze-email-domain", {
