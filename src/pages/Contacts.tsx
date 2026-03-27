@@ -373,12 +373,69 @@ const Contacts = () => {
     return true;
   });
 
+  const getEmailStatus = (email: string) => {
+    const log = emailLogsMap?.[email];
+    if (!log) return "No sends";
+    if (log.complaint_at) return "Unsubscribed";
+    if (log.bounced_at) return log.bounce_type === "hard" ? "Hard Bounce" : "Soft Bounce";
+    if (log.clicked_at) return "Clicked";
+    if (log.opened_at) return "Opened";
+    if (log.delivered_at) return "Delivered";
+    if (log.sent_at) return "Sent";
+    return log.status === "failed" ? "Failed" : "Pending";
+  };
+
+  const handleExportCSV = () => {
+    const dataToExport = filteredContacts || [];
+    if (dataToExport.length === 0) {
+      toast({ title: "No contacts to export", variant: "destructive" });
+      return;
+    }
+
+    const headers = ["Email", "First Name", "Last Name", "Company", "Job Title", "Country", "Timezone", "Status", "Engagement Score", "Suppressed", "Email Provider", "SPF Status", "Email Status", "Last Sent", "Added"];
+    const rows = dataToExport.map((c) => {
+      const log = emailLogsMap?.[c.email];
+      return [
+        c.email,
+        c.first_name || "",
+        c.last_name || "",
+        c.company || "",
+        c.job_title || "",
+        c.country || "",
+        c.timezone || "",
+        c.status || "",
+        c.engagement_score?.toString() || "",
+        c.suppressed ? "Yes" : "No",
+        c.email_provider || "",
+        c.spf_status || "",
+        getEmailStatus(c.email),
+        log?.sent_at ? format(new Date(log.sent_at), "yyyy-MM-dd") : "",
+        format(new Date(c.created_at), "yyyy-MM-dd"),
+      ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
+    });
+
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `contacts-export-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    toast({ title: "Export complete", description: `Exported ${dataToExport.length} contacts` });
+  };
+
   return (
     <AppLayout
       title="Contacts"
       description="Manage your email contacts and subscriber lists"
       action={
         <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={handleExportCSV}>
+            <Download className="w-4 h-4" />
+            Export CSV
+          </Button>
           <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2">
