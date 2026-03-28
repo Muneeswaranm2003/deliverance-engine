@@ -46,6 +46,7 @@ import {
   Download,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { countries, timezoneOptions, getTimezoneForCountry } from "@/lib/countryTimezones";
 import { toast } from "@/hooks/use-toast";
 import type { Tables } from "@/integrations/supabase/types";
@@ -75,6 +76,7 @@ const Contacts = () => {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
     email: "",
     first_name: "",
@@ -385,8 +387,29 @@ const Contacts = () => {
     return log.status === "failed" ? "Failed" : "Pending";
   };
 
+  const allFilteredSelected = filteredContacts && filteredContacts.length > 0 && filteredContacts.every(c => selectedIds.has(c.id));
+  const someFilteredSelected = filteredContacts && filteredContacts.some(c => selectedIds.has(c.id));
+
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set((filteredContacts || []).map(c => c.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const handleExportCSV = () => {
-    const dataToExport = filteredContacts || [];
+    const all = filteredContacts || [];
+    const dataToExport = selectedIds.size > 0 ? all.filter(c => selectedIds.has(c.id)) : all;
     if (dataToExport.length === 0) {
       toast({ title: "No contacts to export", variant: "destructive" });
       return;
@@ -434,7 +457,7 @@ const Contacts = () => {
         <div className="flex gap-2">
           <Button variant="outline" className="gap-2" onClick={handleExportCSV}>
             <Download className="w-4 h-4" />
-            Export CSV
+            {selectedIds.size > 0 ? `Export ${selectedIds.size} Selected` : "Export CSV"}
           </Button>
           <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
             <DialogTrigger asChild>
@@ -751,6 +774,12 @@ const Contacts = () => {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-border">
+                <TableHead className="text-muted-foreground w-[40px]">
+                  <Checkbox
+                    checked={allFilteredSelected ? true : someFilteredSelected ? "indeterminate" : false}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
                 <TableHead className="text-muted-foreground">Contact</TableHead>
                 <TableHead className="text-muted-foreground">Company</TableHead>
                 <TableHead className="text-muted-foreground">Email Status</TableHead>
@@ -770,6 +799,12 @@ const Contacts = () => {
                   transition={{ delay: index * 0.03 }}
                   className="border-border hover:bg-secondary/30"
                 >
+                  <TableCell className="w-[40px]">
+                    <Checkbox
+                      checked={selectedIds.has(contact.id)}
+                      onCheckedChange={() => toggleSelect(contact.id)}
+                    />
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
