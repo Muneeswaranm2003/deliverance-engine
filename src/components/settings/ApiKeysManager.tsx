@@ -36,44 +36,78 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
-function parseProviderError(raw: string): string {
-  const lower = raw.toLowerCase();
-  // Try to extract nested JSON error
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed?.Error) return parsed.Error;
-    if (parsed?.errors?.[0]?.message) return parsed.errors[0].message;
-    if (parsed?.message) return parsed.message;
-  } catch {}
-  // Common pattern matching
-  if (lower.includes("authorization grant is invalid") || lower.includes("(401)"))
-    return "API key is invalid, expired, or revoked. Please generate a new key from your provider dashboard.";
-  if (lower.includes("testing purposes") || lower.includes("only send emails to"))
-    return "Your provider account is on a free/trial plan. Upgrade your plan or send only to verified recipients.";
-  if (lower.includes("domain") && lower.includes("not verified"))
-    return "Your sender domain is not verified. Verify it in your provider's dashboard first.";
-  if (lower.includes("rate limit") || lower.includes("too many requests"))
-    return "Rate limit reached. Wait a moment and try again, or check your provider's sending limits.";
-  if (lower.includes("insufficient") || lower.includes("payment") || lower.includes("billing"))
-    return "Billing issue with your provider account. Check your payment details.";
-  if (lower.includes("forbidden") || lower.includes("(403)"))
-    return "Access denied. Your API key may lack the required permissions (e.g., Mail Send).";
-  // Truncate very long messages
-  return raw.length > 200 ? raw.slice(0, 200) + "…" : raw;
+function unwrapProviderError(raw: string): string {
+  let message = raw;
+  const seen = new Set<string>();
+
+  for (let i = 0; i < 3; i++) {
+    if (!message || seen.has(message)) break;
+    seen.add(message);
+
+    try {
+      const parsed = JSON.parse(message);
+
+      if (typeof parsed === "string") {
+        message = parsed;
+        continue;
+      }
+
+      const nextMessage =
+        parsed?.error ||
+        parsed?.Error ||
+        parsed?.message ||
+        parsed?.errors?.[0]?.message;
+
+      if (typeof nextMessage === "string" && nextMessage !== message) {
+        message = nextMessage;
+        continue;
+      }
+    } catch {
+      break;
+    }
+  }
+
+  return message;
 }
 
-interface ApiKey {
-  id: string;
-  user_id: string;
-  provider: string;
-  api_key: string;
-  label: string;
-  priority: number;
-  is_active: boolean;
-  daily_limit: number | null;
-  emails_sent_today: number;
-  last_error: string | null;
-  last_used_at: string | null;
+function parseProviderError(raw: string): string {
+  const message = unwrapProviderError(raw);
+  const lower = message.toLowerCase();
+  const matchedEmail = message.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
+
+  if (
+    lower.includes("authorization grant is invalid") ||
+    lower.includes("invalid api key") ||
+    lower.includes("expired") ||
+    lower.includes("revoked") ||
+    lower.includes("(401)")
+  ) {
+    return "API key is invalid, expired, or revoked. Please generate a new key from your provider dashboard.";
+  }
+
+  if (lower.includes("testing purposes") || lower.includes("only send emails to")) {
+    return matchedEmail
+      ? `This Elastic Email account is still on a trial plan. For now, you can only send test emails to ${matchedEmail}. Upgrade the provider plan to test other recipients.`
+      : "Your provider account is on a free or trial plan. Upgrade the plan or send only to the provider account email.";
+  }
+
+  if (lower.includes("domain") && lower.includes("not verified")) {
+    return "Your sender domain is not verified. Verify it in your provider dashboard first.";
+  }
+
+  if (lower.includes("rate limit") || lower.includes("too many requests")) {
+    return "Rate limit reached. Wait a moment and try again, or check your provider sending limits.";
+  }
+
+  if (lower.includes("insufficient") || lower.includes("payment") || lower.includes("billing")) {
+    return "There is a billing issue with your provider account. Check your plan and payment details.";
+  }
+
+  if (lower.includes("forbidden") || lower.includes("(403)")) {
+    return "Access denied. Your API key may be missing the required permissions to send email.";
+  }
+
+  return message.length > 200 ? message.slice(0, 200) + "…" : message;
 }
 
 interface ApiKey {
@@ -189,12 +223,12 @@ export const ApiKeysManager = () => {
   });
 
   const [testingKeyId, setTestingKeyId] = useState<string | null>(null);
-  
+
   const testKeyMutation = useMutation({
     mutationFn: async (keyId: string) => {
       if (!user?.email) throw new Error("No user email");
       setTestingKeyId(keyId);
-      
+
       const { data, error } = await supabase.functions.invoke("send-email", {
         body: {
           to: user.email,
@@ -209,8 +243,19 @@ export const ApiKeysManager = () => {
           from_name: "MailForge Test",
         },
       });
-      
-      if (error) throw error;
+
+      if (error) {
+        const responseText =
+          typeof error === "object" &&
+          error !== null &&
+          "context" in error &&
+          error.context instanceof Response
+            ? await error.context.text().catch(() => null)
+            : null;
+
+        throw new Error(responseText || error.message || "Test failed");
+      }
+
       if (!data?.success) throw new Error(data?.error || "Test failed");
       return data;
     },
@@ -219,8 +264,12 @@ export const ApiKeysManager = () => {
       setTestingKeyId(null);
       queryClient.invalidateQueries({ queryKey: ["api_keys"] });
     },
-    onError: (error) => {
-      toast({ title: "Test failed", description: parseProviderError(error.message), variant: "destructive" });
+    onError: (error: Error) => {
+      toast({
+        title: "Test failed",
+        description: parseProviderError(error.message || "Test failed"),
+        variant: "destructive",
+      });
       setTestingKeyId(null);
       queryClient.invalidateQueries({ queryKey: ["api_keys"] });
     },
