@@ -799,6 +799,12 @@ const Contacts = () => {
                   transition={{ delay: index * 0.03 }}
                   className="border-border hover:bg-secondary/30"
                 >
+                  <TableCell className="w-[40px]">
+                    <Checkbox
+                      checked={selectedIds.has(contact.id)}
+                      onCheckedChange={() => toggleSelect(contact.id)}
+                    />
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
