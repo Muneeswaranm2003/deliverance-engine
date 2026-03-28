@@ -457,7 +457,7 @@ const Contacts = () => {
         <div className="flex gap-2">
           <Button variant="outline" className="gap-2" onClick={handleExportCSV}>
             <Download className="w-4 h-4" />
-            Export CSV
+            {selectedIds.size > 0 ? `Export ${selectedIds.size} Selected` : "Export CSV"}
           </Button>
           <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
             <DialogTrigger asChild>
