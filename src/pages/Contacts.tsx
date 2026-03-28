@@ -387,8 +387,29 @@ const Contacts = () => {
     return log.status === "failed" ? "Failed" : "Pending";
   };
 
+  const allFilteredSelected = filteredContacts && filteredContacts.length > 0 && filteredContacts.every(c => selectedIds.has(c.id));
+  const someFilteredSelected = filteredContacts && filteredContacts.some(c => selectedIds.has(c.id));
+
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set((filteredContacts || []).map(c => c.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const handleExportCSV = () => {
-    const dataToExport = filteredContacts || [];
+    const all = filteredContacts || [];
+    const dataToExport = selectedIds.size > 0 ? all.filter(c => selectedIds.has(c.id)) : all;
     if (dataToExport.length === 0) {
       toast({ title: "No contacts to export", variant: "destructive" });
       return;
