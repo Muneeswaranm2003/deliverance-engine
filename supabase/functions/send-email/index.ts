@@ -219,9 +219,32 @@ async function sendViaElasticEmail(apiKey: string, from: string, to: string[], s
       },
     }),
   });
-  const data = await res.json();
-  if (!res.ok) return { success: false, error: JSON.stringify(data) };
-  return { success: true, messageId: data.TransactionID || data.MessageID };
+
+  const raw = await res.text();
+  let data: any = null;
+
+  try {
+    data = raw ? JSON.parse(raw) : null;
+  } catch {
+    data = raw;
+  }
+
+  if (!res.ok) {
+    const errorMessage =
+      typeof data === "string"
+        ? data
+        : typeof data?.Error === "string"
+          ? data.Error
+          : typeof data?.error === "string"
+            ? data.error
+            : typeof data?.message === "string"
+              ? data.message
+              : raw || "Elastic Email request failed";
+
+    return { success: false, error: errorMessage };
+  }
+
+  return { success: true, messageId: data?.TransactionID || data?.MessageID };
 }
 
 async function sendViaMailjet(apiKey: string, from: string, to: string[], subject: string, html: string, text?: string): Promise<SendResult> {
