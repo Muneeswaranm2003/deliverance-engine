@@ -774,6 +774,12 @@ const Contacts = () => {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-border">
+                <TableHead className="text-muted-foreground w-[40px]">
+                  <Checkbox
+                    checked={allFilteredSelected ? true : someFilteredSelected ? "indeterminate" : false}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
                 <TableHead className="text-muted-foreground">Contact</TableHead>
                 <TableHead className="text-muted-foreground">Company</TableHead>
                 <TableHead className="text-muted-foreground">Email Status</TableHead>
