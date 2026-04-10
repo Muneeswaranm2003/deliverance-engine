@@ -283,7 +283,7 @@ const CampaignEdit = () => {
           <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
             <Send className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-display font-bold">MailForge</span>
+          <span className="font-display font-bold">EmailSine</span>
         </div>
 
         <nav className="space-y-2">
@@ -391,7 +391,7 @@ const CampaignEdit = () => {
                       <Label htmlFor="senderName">Sender Name</Label>
                       <Input
                         id="senderName"
-                        placeholder="e.g., John from MailForge"
+                        placeholder="e.g., John from EmailSine"
                         value={senderName}
                         onChange={(e) => setSenderName(e.target.value)}
                         className="bg-secondary/50"
@@ -402,7 +402,7 @@ const CampaignEdit = () => {
                       <Input
                         id="senderEmail"
                         type="email"
-                        placeholder="e.g., john@mailforge.com"
+                        placeholder="e.g., john@emailsine.com"
                         value={senderEmail}
                         onChange={(e) => setSenderEmail(e.target.value)}
                         className="bg-secondary/50"

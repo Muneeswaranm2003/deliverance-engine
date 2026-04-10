@@ -32,7 +32,7 @@ const Footer = () => {
               <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
                 <Mail className="w-4 h-4 text-primary-foreground" />
               </div>
-              <span className="font-display font-bold text-lg">MailForge</span>
+              <span className="font-display font-bold text-lg">EmailSine</span>
             </a>
             <p className="text-muted-foreground text-sm mb-6 max-w-sm">
               Enterprise-grade email marketing platform with high deliverability, 
@@ -74,7 +74,7 @@ const Footer = () => {
         {/* Bottom */}
         <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">
-            © 2024 MailForge. All rights reserved.
+            © 2024 EmailSine. All rights reserved.
           </p>
           <p className="text-sm text-muted-foreground">
             Built with 🔒 privacy in mind

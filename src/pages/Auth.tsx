@@ -167,7 +167,7 @@ const Auth = () => {
 
   const getSubtitle = () => {
     switch (mode) {
-      case "signin": return "Sign in to your MailForge account";
+      case "signin": return "Sign in to your EmailSine account";
       case "signup": return "Start sending emails with confidence";
       case "forgot": return "We'll send you a reset link";
     }
@@ -200,7 +200,7 @@ const Auth = () => {
             <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
               <Mail className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="font-display font-bold text-xl">MailForge</span>
+            <span className="font-display font-bold text-xl">EmailSine</span>
           </div>
 
           {/* Title */}

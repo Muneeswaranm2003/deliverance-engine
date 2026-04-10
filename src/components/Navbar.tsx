@@ -29,7 +29,7 @@ const Navbar = () => {
             <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow">
               <Mail className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="font-display font-bold text-lg">MailForge</span>
+            <span className="font-display font-bold text-lg">EmailSine</span>
           </a>
 
           {/* Desktop Navigation */}
