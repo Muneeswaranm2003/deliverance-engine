@@ -232,15 +232,15 @@ export const ApiKeysManager = () => {
       const { data, error } = await supabase.functions.invoke("send-email", {
         body: {
           to: user.email,
-          subject: "EmailSine API Key Test",
+          subject: "EmailReach API Key Test",
           html: `<div style="font-family: sans-serif; padding: 20px;">
             <h2 style="color: #0ea5e9;">✅ API Key Test Successful!</h2>
             <p>Your API key is working correctly. This test email was sent at ${new Date().toLocaleString()}.</p>
-            <p style="color: #666; font-size: 14px;">Sent by EmailSine</p>
+            <p style="color: #666; font-size: 14px;">Sent by EmailReach</p>
           </div>`,
           text: `API Key Test Successful! Your API key is working correctly. Sent at ${new Date().toLocaleString()}.`,
           from_email: "test@resend.dev",
-          from_name: "EmailSine Test",
+          from_name: "EmailReach Test",
         },
       });
 

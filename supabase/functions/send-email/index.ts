@@ -387,7 +387,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Build "from" string
     const fromEmail = emailRequest.from_email || "noreply@example.com";
-    const fromName = emailRequest.from_name || "EmailSine";
+    const fromName = emailRequest.from_name || "EmailReach";
     const from = `${fromName} <${fromEmail}>`;
 
     // Try each key in priority order (failover)

@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
-import logo from "@/assets/logo.png";
+import { Menu, X, Mail } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
@@ -27,8 +26,10 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <a href="/" className="flex items-center gap-2">
-            <img src={logo} alt="EmailSine" className="h-8 w-8 object-contain" />
-            <span className="font-display font-bold text-lg">EmailSine</span>
+            <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow">
+              <Mail className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <span className="font-display font-bold text-lg">EmailReach</span>
           </a>
 
           {/* Desktop Navigation */}
