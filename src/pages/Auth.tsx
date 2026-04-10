@@ -168,7 +168,7 @@ const Auth = () => {
 
   const getSubtitle = () => {
     switch (mode) {
-      case "signin": return "Sign in to your EmailSine account";
+      case "signin": return "Sign in to your EmailReach account";
       case "signup": return "Start sending emails with confidence";
       case "forgot": return "We'll send you a reset link";
     }
@@ -198,7 +198,7 @@ const Auth = () => {
         <div className="glass-strong rounded-2xl p-8">
           {/* Logo */}
           <div className="flex items-center mb-8">
-            <img src={logoImg} alt="EmailSine" className="h-10" />
+            <img src={logoImg} alt="EmailReach" className="h-10" />
           </div>
 
           {/* Title */}

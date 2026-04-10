@@ -320,7 +320,7 @@ const CampaignCreate = () => {
       {/* Sidebar */}
       <aside className="fixed left-0 top-0 bottom-0 w-64 border-r border-border bg-card p-6 hidden lg:block">
           <div className="flex items-center mb-8">
-            <img src={logoImg} alt="EmailSine" className="h-9" />
+            <img src={logoImg} alt="EmailReach" className="h-9" />
           </div>
 
         <nav className="space-y-2">

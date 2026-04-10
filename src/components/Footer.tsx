@@ -30,7 +30,7 @@ const Footer = () => {
           {/* Brand */}
           <div className="md:col-span-2">
             <a href="/" className="flex items-center mb-4">
-              <img src={logo} alt="EmailSine" className="h-9" />
+              <img src={logo} alt="EmailReach" className="h-9" />
             </a>
             <p className="text-muted-foreground text-sm mb-6 max-w-sm">
               Enterprise-grade email marketing platform with high deliverability, 
@@ -72,7 +72,7 @@ const Footer = () => {
         {/* Bottom */}
         <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">
-            © 2024 EmailSine. All rights reserved.
+            © 2024 EmailReach. All rights reserved.
           </p>
           <p className="text-sm text-muted-foreground">
             Built with 🔒 privacy in mind

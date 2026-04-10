@@ -27,8 +27,8 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <a href="/" className="flex items-center gap-2">
-            <img src={logo} alt="EmailSine" className="h-8 w-8 object-contain" />
-            <span className="font-display font-bold text-lg">EmailSine</span>
+            <img src={logo} alt="EmailReach" className="h-8 w-8 object-contain" />
+            <span className="font-display font-bold text-lg">EmailReach</span>
           </a>
 
           {/* Desktop Navigation */}
