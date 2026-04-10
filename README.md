@@ -10,7 +10,7 @@ There are several ways of editing your application.
 
 **Use EmailReach**
 
-Simply visit the [EmailReach Project](https://EmailReach.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+Simply visit the [EmailReach Project](https://email-reach.vercel.app)) and start prompting.
 
 Changes made via EmailReach will be committed automatically to this repo.
 
@@ -62,12 +62,5 @@ This project is built with:
 
 ## How can I deploy this project?
 
-Simply open [EmailReach](https://EmailReach.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+Simply open [EmailReach](https://email-reach.vercel.app) and click on Share -> Publish.
 
-## Can I connect a custom domain to my EmailReach project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.EmailReach.dev/features/custom-domain#custom-domain)
