@@ -2,7 +2,7 @@
 
 ## Project info
 
-**URL**: https://EmailReach.dev/projects/REPLACE_WITH_PROJECT_ID
+**URL**: https://email-reach.vercel.app
 
 ## How can I edit this code?
 
