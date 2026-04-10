@@ -196,11 +196,8 @@ const Auth = () => {
 
         <div className="glass-strong rounded-2xl p-8">
           {/* Logo */}
-          <div className="flex items-center gap-2 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
-              <Mail className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-display font-bold text-xl">EmailSine</span>
+          <div className="flex items-center mb-8">
+            <img src={logoImg} alt="EmailSine" className="h-10" />
           </div>
 
           {/* Title */}

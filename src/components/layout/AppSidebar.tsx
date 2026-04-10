@@ -3,7 +3,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  Send,
   LayoutDashboard,
   Users,
   Settings,
@@ -16,8 +15,10 @@ import {
   Activity,
   Ban,
   ListFilter,
+  Send,
 } from "lucide-react";
 import { useState } from "react";
+import logoImg from "@/assets/logo.png";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -42,11 +43,8 @@ export const AppSidebar = () => {
 
   const SidebarContent = () => (
     <>
-      <div className="flex items-center gap-2 mb-8">
-        <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-          <Send className="w-4 h-4 text-primary-foreground" />
-        </div>
-        <span className="font-display font-bold text-lg">EmailSine</span>
+      <div className="flex items-center mb-8">
+        <img src={logoImg} alt="EmailSine" className="h-9" />
       </div>
 
       <nav className="space-y-1 flex-1">
