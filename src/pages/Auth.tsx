@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { z } from "zod";
 import { Mail, Lock, ArrowLeft, Eye, EyeOff, RefreshCw, WifiOff } from "lucide-react";
+import logoImg from "@/assets/logo.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -196,11 +197,8 @@ const Auth = () => {
 
         <div className="glass-strong rounded-2xl p-8">
           {/* Logo */}
-          <div className="flex items-center gap-2 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
-              <Mail className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-display font-bold text-xl">EmailSine</span>
+          <div className="flex items-center mb-8">
+            <img src={logoImg} alt="EmailSine" className="h-10" />
           </div>
 
           {/* Title */}
