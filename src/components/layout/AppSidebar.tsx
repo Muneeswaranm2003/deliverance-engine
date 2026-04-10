@@ -43,8 +43,9 @@ export const AppSidebar = () => {
 
   const SidebarContent = () => (
     <>
-      <div className="flex items-center mb-8">
-        <img src={logoImg} alt="EmailSine" className="h-9" />
+      <div className="flex items-center gap-2 mb-8">
+        <img src={logoImg} alt="EmailSine" className="h-8 w-8 object-contain" />
+        <span className="font-display font-bold text-lg">EmailSine</span>
       </div>
 
       <nav className="space-y-1 flex-1">
