@@ -46,7 +46,7 @@ export const AppSidebar = () => {
         <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
           <Send className="w-4 h-4 text-primary-foreground" />
         </div>
-        <span className="font-display font-bold text-lg">MailForge</span>
+        <span className="font-display font-bold text-lg">EmailSine</span>
       </div>
 
       <nav className="space-y-1 flex-1">
