@@ -31,7 +31,6 @@ const Navbar = () => {
             </div>
             <span className="font-display font-bold text-lg">EmailReach</span>
           </a>
-          </a>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
