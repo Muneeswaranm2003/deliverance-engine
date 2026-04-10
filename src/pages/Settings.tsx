@@ -10,18 +10,50 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { motion } from "framer-motion";
-import { 
-  Loader2, 
-  User, 
-  Shield, 
-  Bell, 
-  Save, 
-  Key, 
-  Globe, 
+import {
+  Loader2,
+  User,
+  Shield,
+  Bell,
+  Save,
+  Key,
+  Globe,
 } from "lucide-react";
 import { ApiKeysManager } from "@/components/settings/ApiKeysManager";
 import { IpPoolsManager } from "@/components/settings/IpPoolsManager";
 import { toast } from "@/hooks/use-toast";
+
+const SettingsCard = ({
+  icon: Icon,
+  title,
+  description,
+  children,
+  delay = 0,
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+  delay?: number;
+}) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay }}
+    className="glass rounded-xl p-6"
+  >
+    <div className="flex items-start gap-4 mb-6">
+      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+        <Icon className="w-5 h-5 text-primary" />
+      </div>
+      <div>
+        <h3 className="font-display font-semibold text-lg">{title}</h3>
+        <p className="text-muted-foreground text-sm">{description}</p>
+      </div>
+    </div>
+    {children}
+  </motion.div>
+);
 
 const Settings = () => {
   const { user } = useAuth();
@@ -86,38 +118,6 @@ const Settings = () => {
   const handleSave = () => {
     updateProfile.mutate({ full_name: formData.full_name });
   };
-
-  const SettingsCard = ({
-    icon: Icon,
-    title,
-    description,
-    children,
-    delay = 0,
-  }: {
-    icon: React.ElementType;
-    title: string;
-    description: string;
-    children: React.ReactNode;
-    delay?: number;
-  }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay }}
-      className="glass rounded-xl p-6"
-    >
-      <div className="flex items-start gap-4 mb-6">
-        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-          <Icon className="w-5 h-5 text-primary" />
-        </div>
-        <div>
-          <h3 className="font-display font-semibold text-lg">{title}</h3>
-          <p className="text-muted-foreground text-sm">{description}</p>
-        </div>
-      </div>
-      {children}
-    </motion.div>
-  );
 
   if (isLoading) {
     return (
