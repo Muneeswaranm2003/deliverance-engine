@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import logoImg from "@/assets/logo.png";
+
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -280,8 +280,11 @@ const CampaignEdit = () => {
     <div className="min-h-screen bg-background">
       {/* Sidebar */}
       <aside className="fixed left-0 top-0 bottom-0 w-64 border-r border-border bg-card p-6 hidden lg:block">
-          <div className="flex items-center mb-8">
-            <img src={logoImg} alt="EmailReach" className="h-9" />
+          <div className="flex items-center gap-2 mb-8">
+            <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
+              <Send className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <span className="font-display font-bold">EmailReach</span>
           </div>
 
         <nav className="space-y-2">

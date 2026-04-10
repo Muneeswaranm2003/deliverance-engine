@@ -18,7 +18,7 @@ import {
   Send,
 } from "lucide-react";
 import { useState } from "react";
-import logoImg from "@/assets/logo.png";
+import { Mail } from "lucide-react";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -44,7 +44,9 @@ export const AppSidebar = () => {
   const SidebarContent = () => (
     <>
       <div className="flex items-center gap-2 mb-8">
-        <img src={logoImg} alt="EmailReach" className="h-8 w-8 object-contain" />
+        <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
+          <Mail className="w-4 h-4 text-primary-foreground" />
+        </div>
         <span className="font-display font-bold text-lg">EmailReach</span>
       </div>
 

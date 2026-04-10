@@ -1,5 +1,4 @@
-import { Twitter, Linkedin, Github } from "lucide-react";
-import logo from "@/assets/logo.png";
+import { Mail, Twitter, Linkedin, Github } from "lucide-react";
 
 const Footer = () => {
   const footerLinks = {
@@ -29,8 +28,11 @@ const Footer = () => {
         <div className="grid md:grid-cols-5 gap-12 mb-12">
           {/* Brand */}
           <div className="md:col-span-2">
-            <a href="/" className="flex items-center mb-4">
-              <img src={logo} alt="EmailReach" className="h-9" />
+            <a href="/" className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
+                <Mail className="w-4 h-4 text-primary-foreground" />
+              </div>
+              <span className="font-display font-bold text-lg">EmailReach</span>
             </a>
             <p className="text-muted-foreground text-sm mb-6 max-w-sm">
               Enterprise-grade email marketing platform with high deliverability, 
