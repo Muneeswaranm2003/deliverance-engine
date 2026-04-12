@@ -544,13 +544,93 @@ export const ApiKeysManager = () => {
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
-                  </Button>
                 </div>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={(open) => { setShowEditDialog(open); if (!open) setEditingKey(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit API Key</DialogTitle>
+          </DialogHeader>
+          {editingKey && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Label</Label>
+                <Input
+                  placeholder="e.g. Primary, Backup"
+                  value={editingKey.label}
+                  onChange={(e) => setEditingKey({ ...editingKey, label: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Provider</Label>
+                <Select value={editingKey.provider} onValueChange={(v) => setEditingKey({ ...editingKey, provider: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="resend">Resend</SelectItem>
+                    <SelectItem value="sendgrid">SendGrid</SelectItem>
+                    <SelectItem value="mailgun">Mailgun</SelectItem>
+                    <SelectItem value="ses">Amazon SES</SelectItem>
+                    <SelectItem value="postmark">Postmark</SelectItem>
+                    <SelectItem value="sparkpost">SparkPost</SelectItem>
+                    <SelectItem value="mandrill">Mandrill (Mailchimp)</SelectItem>
+                    <SelectItem value="sendinblue">Brevo (Sendinblue)</SelectItem>
+                    <SelectItem value="elastic_email">Elastic Email</SelectItem>
+                    <SelectItem value="smtp2go">SMTP2GO</SelectItem>
+                    <SelectItem value="socketlabs">SocketLabs</SelectItem>
+                    <SelectItem value="pepipost">Pepipost</SelectItem>
+                    <SelectItem value="mailjet">Mailjet</SelectItem>
+                    <SelectItem value="custom">Custom / Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {editingKey.provider === "custom" && (
+                <div className="space-y-2">
+                  <Label>API Endpoint URL</Label>
+                  <Input
+                    placeholder="https://api.yourprovider.com/v1/send"
+                    value={editingKey.endpoint_url}
+                    onChange={(e) => setEditingKey({ ...editingKey, endpoint_url: e.target.value })}
+                  />
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label>API Key</Label>
+                <Input
+                  type="password"
+                  placeholder="Enter new API key"
+                  value={editingKey.api_key}
+                  onChange={(e) => setEditingKey({ ...editingKey, api_key: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Daily Limit (optional)</Label>
+                <Input
+                  type="number"
+                  placeholder="Unlimited"
+                  value={editingKey.daily_limit}
+                  onChange={(e) => setEditingKey({ ...editingKey, daily_limit: e.target.value })}
+                />
+              </div>
+              <Button
+                onClick={() => editKeyMutation.mutate()}
+                disabled={!editingKey.api_key || editKeyMutation.isPending}
+                className="w-full gap-2"
+              >
+                {editKeyMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                Save Changes
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <p className="text-xs text-muted-foreground">
         Keys are used in priority order. When a key hits its daily limit or fails, the next active key takes over automatically.
