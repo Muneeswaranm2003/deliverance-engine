@@ -209,6 +209,32 @@ export const ApiKeysManager = () => {
     },
   });
 
+  const editKeyMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingKey) throw new Error("No key to edit");
+      const { error } = await supabase
+        .from("api_keys")
+        .update({
+          label: editingKey.label,
+          provider: editingKey.provider,
+          api_key: editingKey.api_key,
+          daily_limit: editingKey.daily_limit ? parseInt(editingKey.daily_limit) : null,
+          endpoint_url: editingKey.provider === "custom" ? editingKey.endpoint_url || null : null,
+        })
+        .eq("id", editingKey.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["api_keys"] });
+      setShowEditDialog(false);
+      setEditingKey(null);
+      toast({ title: "API key updated" });
+    },
+    onError: (error) => {
+      toast({ title: "Error updating API key", description: error.message, variant: "destructive" });
+    },
+  });
+
   const updatePriorityMutation = useMutation({
     mutationFn: async ({ id, direction }: { id: string; direction: "up" | "down" }) => {
       if (!apiKeys) return;
