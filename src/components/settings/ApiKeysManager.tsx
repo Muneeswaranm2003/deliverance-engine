@@ -33,6 +33,7 @@ import {
   ArrowUp,
   ArrowDown,
   Send,
+  Pencil,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -129,6 +130,15 @@ export const ApiKeysManager = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showDialog, setShowDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingKey, setEditingKey] = useState<{
+    id: string;
+    label: string;
+    provider: string;
+    api_key: string;
+    daily_limit: string;
+    endpoint_url: string;
+  } | null>(null);
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
   const [newKey, setNewKey] = useState({
     label: "",
@@ -197,6 +207,32 @@ export const ApiKeysManager = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["api_keys"] });
+    },
+  });
+
+  const editKeyMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingKey) throw new Error("No key to edit");
+      const { error } = await supabase
+        .from("api_keys")
+        .update({
+          label: editingKey.label,
+          provider: editingKey.provider,
+          api_key: editingKey.api_key,
+          daily_limit: editingKey.daily_limit ? parseInt(editingKey.daily_limit) : null,
+          endpoint_url: editingKey.provider === "custom" ? editingKey.endpoint_url || null : null,
+        })
+        .eq("id", editingKey.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["api_keys"] });
+      setShowEditDialog(false);
+      setEditingKey(null);
+      toast({ title: "API key updated" });
+    },
+    onError: (error) => {
+      toast({ title: "Error updating API key", description: error.message, variant: "destructive" });
     },
   });
 
@@ -476,6 +512,24 @@ export const ApiKeysManager = () => {
                     )}
                     Test
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => {
+                      setEditingKey({
+                        id: key.id,
+                        label: key.label,
+                        provider: key.provider,
+                        api_key: key.api_key,
+                        daily_limit: key.daily_limit?.toString() || "",
+                        endpoint_url: key.endpoint_url || "",
+                      });
+                      setShowEditDialog(true);
+                    }}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
                   <Switch
                     checked={key.is_active}
                     onCheckedChange={(checked) =>
@@ -496,6 +550,87 @@ export const ApiKeysManager = () => {
           ))}
         </div>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={(open) => { setShowEditDialog(open); if (!open) setEditingKey(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit API Key</DialogTitle>
+          </DialogHeader>
+          {editingKey && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Label</Label>
+                <Input
+                  placeholder="e.g. Primary, Backup"
+                  value={editingKey.label}
+                  onChange={(e) => setEditingKey({ ...editingKey, label: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Provider</Label>
+                <Select value={editingKey.provider} onValueChange={(v) => setEditingKey({ ...editingKey, provider: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="resend">Resend</SelectItem>
+                    <SelectItem value="sendgrid">SendGrid</SelectItem>
+                    <SelectItem value="mailgun">Mailgun</SelectItem>
+                    <SelectItem value="ses">Amazon SES</SelectItem>
+                    <SelectItem value="postmark">Postmark</SelectItem>
+                    <SelectItem value="sparkpost">SparkPost</SelectItem>
+                    <SelectItem value="mandrill">Mandrill (Mailchimp)</SelectItem>
+                    <SelectItem value="sendinblue">Brevo (Sendinblue)</SelectItem>
+                    <SelectItem value="elastic_email">Elastic Email</SelectItem>
+                    <SelectItem value="smtp2go">SMTP2GO</SelectItem>
+                    <SelectItem value="socketlabs">SocketLabs</SelectItem>
+                    <SelectItem value="pepipost">Pepipost</SelectItem>
+                    <SelectItem value="mailjet">Mailjet</SelectItem>
+                    <SelectItem value="custom">Custom / Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {editingKey.provider === "custom" && (
+                <div className="space-y-2">
+                  <Label>API Endpoint URL</Label>
+                  <Input
+                    placeholder="https://api.yourprovider.com/v1/send"
+                    value={editingKey.endpoint_url}
+                    onChange={(e) => setEditingKey({ ...editingKey, endpoint_url: e.target.value })}
+                  />
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label>API Key</Label>
+                <Input
+                  type="password"
+                  placeholder="Enter new API key"
+                  value={editingKey.api_key}
+                  onChange={(e) => setEditingKey({ ...editingKey, api_key: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Daily Limit (optional)</Label>
+                <Input
+                  type="number"
+                  placeholder="Unlimited"
+                  value={editingKey.daily_limit}
+                  onChange={(e) => setEditingKey({ ...editingKey, daily_limit: e.target.value })}
+                />
+              </div>
+              <Button
+                onClick={() => editKeyMutation.mutate()}
+                disabled={!editingKey.api_key || editKeyMutation.isPending}
+                className="w-full gap-2"
+              >
+                {editKeyMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                Save Changes
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <p className="text-xs text-muted-foreground">
         Keys are used in priority order. When a key hits its daily limit or fails, the next active key takes over automatically.
