@@ -149,6 +149,7 @@ export const ApiKeysManager = () => {
     daily_limit: string;
     endpoint_url: string;
   } | null>(null);
+  const [deleteKeyId, setDeleteKeyId] = useState<string | null>(null);
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
   const [newKey, setNewKey] = useState({
     label: "",
