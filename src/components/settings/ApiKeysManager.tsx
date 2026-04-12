@@ -129,6 +129,15 @@ export const ApiKeysManager = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showDialog, setShowDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingKey, setEditingKey] = useState<{
+    id: string;
+    label: string;
+    provider: string;
+    api_key: string;
+    daily_limit: string;
+    endpoint_url: string;
+  } | null>(null);
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
   const [newKey, setNewKey] = useState({
     label: "",
