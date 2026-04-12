@@ -22,6 +22,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Loader2,
   Plus,
   Trash2,
@@ -139,6 +149,7 @@ export const ApiKeysManager = () => {
     daily_limit: string;
     endpoint_url: string;
   } | null>(null);
+  const [deleteKeyId, setDeleteKeyId] = useState<string | null>(null);
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
   const [newKey, setNewKey] = useState({
     label: "",
@@ -540,7 +551,7 @@ export const ApiKeysManager = () => {
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-destructive hover:text-destructive"
-                    onClick={() => deleteKeyMutation.mutate(key.id)}
+                    onClick={() => setDeleteKeyId(key.id)}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -631,6 +642,30 @@ export const ApiKeysManager = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteKeyId} onOpenChange={(open) => { if (!open) setDeleteKeyId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete API Key</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The API key will be permanently removed and any campaigns using it will fail over to the next available key.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteKeyId) deleteKeyMutation.mutate(deleteKeyId);
+                setDeleteKeyId(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <p className="text-xs text-muted-foreground">
         Keys are used in priority order. When a key hits its daily limit or fails, the next active key takes over automatically.
