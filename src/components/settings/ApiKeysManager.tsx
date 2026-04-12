@@ -33,6 +33,7 @@ import {
   ArrowUp,
   ArrowDown,
   Send,
+  Pencil,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
