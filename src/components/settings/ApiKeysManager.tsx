@@ -512,6 +512,24 @@ export const ApiKeysManager = () => {
                     )}
                     Test
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => {
+                      setEditingKey({
+                        id: key.id,
+                        label: key.label,
+                        provider: key.provider,
+                        api_key: key.api_key,
+                        daily_limit: key.daily_limit?.toString() || "",
+                        endpoint_url: key.endpoint_url || "",
+                      });
+                      setShowEditDialog(true);
+                    }}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
                   <Switch
                     checked={key.is_active}
                     onCheckedChange={(checked) =>
@@ -525,6 +543,7 @@ export const ApiKeysManager = () => {
                     onClick={() => deleteKeyMutation.mutate(key.id)}
                   >
                     <Trash2 className="w-4 h-4" />
+                  </Button>
                   </Button>
                 </div>
               </div>
