@@ -1,5 +1,4 @@
 import { useState, useCallback } from "react";
-import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -8,165 +7,239 @@ import { NodePalette } from "./NodePalette";
 import { FlowCanvas } from "./FlowCanvas";
 import { NodeConfigPanel } from "./NodeConfigPanel";
 import { FlowStep, NodeConfig, flattenSteps } from "./flowTypes";
-import { Loader2, Workflow, Save } from "lucide-react";
- 
- interface MultiStepFlowBuilderProps {
-   onSubmit: (data: {
-     name: string;
-     description: string;
-     steps: FlowStep[];
-   }) => void;
-   onCancel: () => void;
-   isSaving: boolean;
-   initialData?: {
-     name: string;
-     description: string;
-     steps: FlowStep[];
-   };
- }
- 
- export const MultiStepFlowBuilder = ({
-   onSubmit,
-   onCancel,
-   isSaving,
-   initialData,
- }: MultiStepFlowBuilderProps) => {
-   const [name, setName] = useState(initialData?.name || "");
-   const [description, setDescription] = useState(initialData?.description || "");
-   const [steps, setSteps] = useState<FlowStep[]>(initialData?.steps || []);
-    const [isDraggingFromPalette, setIsDraggingFromPalette] = useState(false);
-    const [draggedNode, setDraggedNode] = useState<NodeConfig | null>(null);
-    const [configuringStep, setConfiguringStep] = useState<FlowStep | null>(null);
- 
-   const handleDragStart = useCallback((node: NodeConfig) => {
-     setDraggedNode(node);
-     setIsDraggingFromPalette(true);
-   }, []);
- 
-   const handleDragEnd = useCallback(() => {
-     setDraggedNode(null);
-     setIsDraggingFromPalette(false);
-   }, []);
- 
-    const handleSubmit = useCallback(() => {
-      if (!name.trim()) return;
-      if (steps.length === 0) return;
-      onSubmit({ name, description, steps });
-    }, [name, description, steps, onSubmit]);
+import {
+  Loader2,
+  Workflow,
+  Save,
+  Zap,
+  CheckCircle2,
+  AlertCircle,
+  GitBranch,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
-    const handleConfigureStep = useCallback((step: FlowStep) => {
-      setConfiguringStep(step);
-    }, []);
+interface MultiStepFlowBuilderProps {
+  onSubmit: (data: {
+    name: string;
+    description: string;
+    steps: FlowStep[];
+  }) => void;
+  onCancel: () => void;
+  isSaving: boolean;
+  initialData?: {
+    name: string;
+    description: string;
+    steps: FlowStep[];
+  };
+}
 
-    const handleSaveConfig = useCallback((stepId: string, config: Record<string, unknown>) => {
+export const MultiStepFlowBuilder = ({
+  onSubmit,
+  onCancel,
+  isSaving,
+  initialData,
+}: MultiStepFlowBuilderProps) => {
+  const [name, setName] = useState(initialData?.name || "");
+  const [description, setDescription] = useState(
+    initialData?.description || ""
+  );
+  const [steps, setSteps] = useState<FlowStep[]>(initialData?.steps || []);
+  const [isDraggingFromPalette, setIsDraggingFromPalette] = useState(false);
+  const [draggedNode, setDraggedNode] = useState<NodeConfig | null>(null);
+  const [configuringStep, setConfiguringStep] = useState<FlowStep | null>(
+    null
+  );
+
+  const handleDragStart = useCallback((node: NodeConfig) => {
+    setDraggedNode(node);
+    setIsDraggingFromPalette(true);
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedNode(null);
+    setIsDraggingFromPalette(false);
+  }, []);
+
+  const handleSubmit = useCallback(() => {
+    if (!name.trim()) return;
+    if (steps.length === 0) return;
+    onSubmit({ name, description, steps });
+  }, [name, description, steps, onSubmit]);
+
+  const handleConfigureStep = useCallback((step: FlowStep) => {
+    setConfiguringStep(step);
+  }, []);
+
+  const handleSaveConfig = useCallback(
+    (stepId: string, config: Record<string, unknown>) => {
       const updateStepConfig = (items: FlowStep[]): FlowStep[] =>
         items.map((s) => {
           if (s.id === stepId) return { ...s, config };
           return {
             ...s,
-            yesBranch: s.yesBranch ? updateStepConfig(s.yesBranch) : s.yesBranch,
+            yesBranch: s.yesBranch
+              ? updateStepConfig(s.yesBranch)
+              : s.yesBranch,
             noBranch: s.noBranch ? updateStepConfig(s.noBranch) : s.noBranch,
           };
         });
       setSteps(updateStepConfig(steps));
-    }, [steps]);
- 
-    const allSteps = flattenSteps(steps);
-    const hasTrigger = allSteps.some((s) => s.type === "trigger");
-    const hasAction = allSteps.some((s) => s.type === "action");
-    const isValid = name.trim() && hasTrigger && hasAction;
- 
-   return (
-     <div className="flex flex-col h-[70vh]">
-       {/* Header with name input */}
-       <div className="shrink-0 p-4 border-b border-border bg-secondary/30">
-         <div className="flex items-start gap-4">
-           <div className="flex-1 space-y-3">
-             <div className="space-y-1.5">
-               <Label htmlFor="flow-name" className="text-xs">Automation Name</Label>
-               <Input
-                 id="flow-name"
-                 placeholder="e.g., Welcome series for new subscribers"
-                 value={name}
-                 onChange={(e) => setName(e.target.value)}
-                 className="h-9"
-               />
-             </div>
-             <div className="space-y-1.5">
-               <Label htmlFor="flow-description" className="text-xs">Description (optional)</Label>
-               <Textarea
-                 id="flow-description"
-                 placeholder="Describe what this automation does..."
-                 value={description}
-                 onChange={(e) => setDescription(e.target.value)}
-                 className="resize-none h-16 text-sm"
-               />
-             </div>
-           </div>
-         </div>
-       </div>
- 
-       {/* Main content area */}
-       <div className="flex flex-1 min-h-0">
-         {/* Node Palette */}
-         <NodePalette onDragStart={handleDragStart} onDragEnd={handleDragEnd} />
- 
-          {/* Flow Canvas */}
-          <FlowCanvas
-            steps={steps}
-            onStepsChange={setSteps}
-            isDraggingFromPalette={isDraggingFromPalette}
-            draggedNode={draggedNode}
-            onConfigureStep={handleConfigureStep}
-          />
+    },
+    [steps]
+  );
 
-          {/* Node Config Panel */}
-          {configuringStep && (
-            <NodeConfigPanel
-              step={configuringStep}
-              onSave={handleSaveConfig}
-              onClose={() => setConfiguringStep(null)}
-            />
-          )}
-       </div>
- 
-       {/* Footer */}
-       <div className="shrink-0 p-4 border-t border-border bg-secondary/30">
-         <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Workflow className="w-4 h-4" />
-              <span>
-                {allSteps.length} step{allSteps.length !== 1 ? "s" : ""} configured
-              </span>
-              {!hasTrigger && allSteps.length > 0 && (
-                <span className="text-warning">• Needs a trigger</span>
-              )}
-              {!hasAction && allSteps.length > 0 && (
-                <span className="text-warning">• Needs an action</span>
-              )}
-              {steps.some((s) => s.type === "condition") && (
-                <span className="text-violet-500">• Has branching</span>
-              )}
+  const allSteps = flattenSteps(steps);
+  const hasTrigger = allSteps.some((s) => s.type === "trigger");
+  const hasAction = allSteps.some((s) => s.type === "action");
+  const hasBranching = steps.some((s) => s.type === "condition");
+  const isValid = name.trim() && hasTrigger && hasAction;
+
+  return (
+    <div className="flex flex-col h-[75vh]">
+      {/* Header */}
+      <div className="shrink-0 px-5 py-4 border-b border-border/50 bg-card/60 backdrop-blur-sm">
+        <div className="flex items-start gap-5">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
+            <Workflow className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1 space-y-3 min-w-0">
+            <div className="space-y-1">
+              <Label htmlFor="flow-name" className="text-xs font-semibold">
+                Automation Name
+              </Label>
+              <Input
+                id="flow-name"
+                placeholder="e.g., Welcome series for new subscribers"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="h-9 bg-secondary/30 border-border/50 focus:border-primary/50"
+              />
             </div>
-           <div className="flex gap-3">
-             <Button variant="outline" onClick={onCancel}>
-               Cancel
-             </Button>
-             <Button
-               variant="hero"
-               onClick={handleSubmit}
-               disabled={isSaving || !isValid}
-             >
-               {isSaving ? (
-                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-               ) : (
-                 <Save className="w-4 h-4 mr-2" />
-               )}
-               Save Automation
-             </Button>
-           </div>
-         </div>
-       </div>
-     </div>
-   );
- };
+            <div className="space-y-1">
+              <Label
+                htmlFor="flow-description"
+                className="text-xs font-semibold"
+              >
+                Description{" "}
+                <span className="font-normal text-muted-foreground">
+                  (optional)
+                </span>
+              </Label>
+              <Textarea
+                id="flow-description"
+                placeholder="Describe what this automation does..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="resize-none h-14 text-sm bg-secondary/30 border-border/50"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main content area */}
+      <div className="flex flex-1 min-h-0">
+        {/* Node Palette */}
+        <NodePalette onDragStart={handleDragStart} onDragEnd={handleDragEnd} />
+
+        {/* Flow Canvas */}
+        <FlowCanvas
+          steps={steps}
+          onStepsChange={setSteps}
+          isDraggingFromPalette={isDraggingFromPalette}
+          draggedNode={draggedNode}
+          onConfigureStep={handleConfigureStep}
+        />
+
+        {/* Node Config Panel */}
+        {configuringStep && (
+          <NodeConfigPanel
+            step={configuringStep}
+            onSave={handleSaveConfig}
+            onClose={() => setConfiguringStep(null)}
+          />
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="shrink-0 px-5 py-3 border-t border-border/50 bg-card/60 backdrop-blur-sm">
+        <div className="flex items-center justify-between">
+          {/* Status badges */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-[10px] gap-1 font-medium",
+                hasTrigger
+                  ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/5"
+                  : "border-border text-muted-foreground"
+              )}
+            >
+              {hasTrigger ? (
+                <CheckCircle2 className="w-3 h-3" />
+              ) : (
+                <AlertCircle className="w-3 h-3" />
+              )}
+              Trigger
+            </Badge>
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-[10px] gap-1 font-medium",
+                hasAction
+                  ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/5"
+                  : "border-border text-muted-foreground"
+              )}
+            >
+              {hasAction ? (
+                <CheckCircle2 className="w-3 h-3" />
+              ) : (
+                <AlertCircle className="w-3 h-3" />
+              )}
+              Action
+            </Badge>
+            {hasBranching && (
+              <Badge
+                variant="outline"
+                className="text-[10px] gap-1 font-medium border-violet-500/30 text-violet-500 bg-violet-500/5"
+              >
+                <GitBranch className="w-3 h-3" />
+                Branching
+              </Badge>
+            )}
+            <span className="text-[10px] text-muted-foreground ml-1">
+              {allSteps.length} step{allSteps.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onCancel}
+              className="h-9"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="hero"
+              size="sm"
+              onClick={handleSubmit}
+              disabled={isSaving || !isValid}
+              className="h-9"
+            >
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-1.5" />
+              )}
+              Save Automation
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
