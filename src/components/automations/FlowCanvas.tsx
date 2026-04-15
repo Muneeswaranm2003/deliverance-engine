@@ -203,7 +203,7 @@ export const FlowCanvas = ({
                   ? "Drop your first node here"
                   : "Drop here to add at start"}
               </p>
-            </motion.div>
+            </div>
           ) : null}
 
           {/* Flow Steps */}
