@@ -255,12 +255,64 @@ const TriggerConfig = ({
               </SelectContent>
             </Select>
           </FieldGroup>
+          {(config.schedule_type === "once") && (
+            <FieldGroup label="Date">
+              <Input
+                type="date"
+                value={(config.date as string) || ""}
+                onChange={(e) => onChange("date", e.target.value)}
+              />
+            </FieldGroup>
+          )}
+          {(config.schedule_type === "weekly") && (
+            <FieldGroup label="Day of Week">
+              <Select
+                value={(config.day_of_week as string) || "monday"}
+                onValueChange={(v) => onChange("day_of_week", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monday">Monday</SelectItem>
+                  <SelectItem value="tuesday">Tuesday</SelectItem>
+                  <SelectItem value="wednesday">Wednesday</SelectItem>
+                  <SelectItem value="thursday">Thursday</SelectItem>
+                  <SelectItem value="friday">Friday</SelectItem>
+                  <SelectItem value="saturday">Saturday</SelectItem>
+                  <SelectItem value="sunday">Sunday</SelectItem>
+                </SelectContent>
+              </Select>
+            </FieldGroup>
+          )}
           <FieldGroup label="Time">
             <Input
               type="time"
               value={(config.time as string) || "09:00"}
               onChange={(e) => onChange("time", e.target.value)}
             />
+          </FieldGroup>
+          <FieldGroup label="Timezone">
+            <Select
+              value={(config.timezone as string) || "UTC"}
+              onValueChange={(v) => onChange("timezone", v)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="UTC">UTC</SelectItem>
+                <SelectItem value="America/New_York">Eastern (US)</SelectItem>
+                <SelectItem value="America/Chicago">Central (US)</SelectItem>
+                <SelectItem value="America/Denver">Mountain (US)</SelectItem>
+                <SelectItem value="America/Los_Angeles">Pacific (US)</SelectItem>
+                <SelectItem value="Europe/London">London (GMT)</SelectItem>
+                <SelectItem value="Europe/Paris">Central Europe</SelectItem>
+                <SelectItem value="Asia/Kolkata">India (IST)</SelectItem>
+                <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
+                <SelectItem value="Australia/Sydney">Sydney (AEST)</SelectItem>
+              </SelectContent>
+            </Select>
           </FieldGroup>
         </div>
       );
