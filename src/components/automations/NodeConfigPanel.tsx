@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -15,6 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 interface NodeConfigPanelProps {
   step: FlowStep | null;
@@ -251,12 +255,64 @@ const TriggerConfig = ({
               </SelectContent>
             </Select>
           </FieldGroup>
+          {(config.schedule_type === "once") && (
+            <FieldGroup label="Date">
+              <Input
+                type="date"
+                value={(config.date as string) || ""}
+                onChange={(e) => onChange("date", e.target.value)}
+              />
+            </FieldGroup>
+          )}
+          {(config.schedule_type === "weekly") && (
+            <FieldGroup label="Day of Week">
+              <Select
+                value={(config.day_of_week as string) || "monday"}
+                onValueChange={(v) => onChange("day_of_week", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monday">Monday</SelectItem>
+                  <SelectItem value="tuesday">Tuesday</SelectItem>
+                  <SelectItem value="wednesday">Wednesday</SelectItem>
+                  <SelectItem value="thursday">Thursday</SelectItem>
+                  <SelectItem value="friday">Friday</SelectItem>
+                  <SelectItem value="saturday">Saturday</SelectItem>
+                  <SelectItem value="sunday">Sunday</SelectItem>
+                </SelectContent>
+              </Select>
+            </FieldGroup>
+          )}
           <FieldGroup label="Time">
             <Input
               type="time"
               value={(config.time as string) || "09:00"}
               onChange={(e) => onChange("time", e.target.value)}
             />
+          </FieldGroup>
+          <FieldGroup label="Timezone">
+            <Select
+              value={(config.timezone as string) || "UTC"}
+              onValueChange={(v) => onChange("timezone", v)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="UTC">UTC</SelectItem>
+                <SelectItem value="America/New_York">Eastern (US)</SelectItem>
+                <SelectItem value="America/Chicago">Central (US)</SelectItem>
+                <SelectItem value="America/Denver">Mountain (US)</SelectItem>
+                <SelectItem value="America/Los_Angeles">Pacific (US)</SelectItem>
+                <SelectItem value="Europe/London">London (GMT)</SelectItem>
+                <SelectItem value="Europe/Paris">Central Europe</SelectItem>
+                <SelectItem value="Asia/Kolkata">India (IST)</SelectItem>
+                <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
+                <SelectItem value="Australia/Sydney">Sydney (AEST)</SelectItem>
+              </SelectContent>
+            </Select>
           </FieldGroup>
         </div>
       );
@@ -394,6 +450,150 @@ const DelayConfig = ({
   );
 };
 
+/* ────────────────── Send Email Config ────────────────── */
+
+const SendEmailConfig = ({
+  config,
+  onChange,
+  nodeType,
+}: {
+  config: Record<string, unknown>;
+  onChange: (key: string, value: unknown) => void;
+  nodeType: string;
+}) => {
+  const { user } = useAuth();
+  const { data: campaigns } = useQuery({
+    queryKey: ["campaigns-for-automation", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data } = await supabase.from("campaigns").select("id, name, subject, status").eq("user_id", user.id).order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!user,
+  });
+  const { data: senderDomains } = useQuery({
+    queryKey: ["sender-domains-for-automation", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data } = await supabase.from("sender_domains").select("id, from_email, from_name, domain_name, is_verified").eq("user_id", user.id).order("display_order");
+      return data || [];
+    },
+    enabled: !!user,
+  });
+  return (
+    <div className="space-y-4">
+      <FieldGroup label="Campaign to Send">
+        <Select value={(config.campaign_id as string) || "custom"} onValueChange={(v) => onChange("campaign_id", v)}>
+          <SelectTrigger><SelectValue placeholder="Select a campaign" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="custom">✏️ Custom Email</SelectItem>
+            {campaigns?.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                <span className="flex items-center gap-2">
+                  <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", c.status === "sent" ? "bg-emerald-500" : c.status === "draft" ? "bg-amber-500" : "bg-muted-foreground")} />
+                  {c.name}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {campaigns && campaigns.length === 0 && <p className="text-[11px] text-amber-500 mt-1">No campaigns found. Create one first or use custom email.</p>}
+      </FieldGroup>
+      {(!config.campaign_id || config.campaign_id === "custom") && (
+        <>
+          <FieldGroup label="Email Template">
+            <Input placeholder="e.g., Welcome Email v2" value={(config.template_name as string) || ""} onChange={(e) => onChange("template_name", e.target.value)} />
+          </FieldGroup>
+          <FieldGroup label="Subject Line">
+            <Input placeholder="e.g., {{first_name}}, check this out!" value={(config.subject as string) || ""} onChange={(e) => onChange("subject", e.target.value)} />
+            <p className="text-[11px] text-muted-foreground mt-1">Supports merge tags like {"{{first_name}}"}</p>
+          </FieldGroup>
+        </>
+      )}
+      <FieldGroup label="Send From">
+        <Select value={(config.sender_domain_id as string) || "default"} onValueChange={(v) => onChange("sender_domain_id", v)}>
+          <SelectTrigger><SelectValue placeholder="Select sender" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">Default Sender</SelectItem>
+            {senderDomains?.map((d) => (<SelectItem key={d.id} value={d.id}>{d.is_verified ? "✓" : "⚠️"} {d.from_name} &lt;{d.from_email}&gt;</SelectItem>))}
+          </SelectContent>
+        </Select>
+      </FieldGroup>
+      <FieldGroup label="Sender Name (override)">
+        <Input placeholder="e.g., Sarah from Acme" value={(config.sender_name as string) || ""} onChange={(e) => onChange("sender_name", e.target.value)} />
+      </FieldGroup>
+      <div className="pt-2 border-t border-border/50">
+        <div className="flex items-center justify-between mb-3">
+          <Label className="text-xs font-semibold">Schedule Send Time</Label>
+          <Switch checked={(config.schedule_enabled as boolean) || false} onCheckedChange={(v) => onChange("schedule_enabled", v)} />
+        </div>
+        {config.schedule_enabled && (
+          <div className="space-y-3">
+            <FieldGroup label="Send At">
+              <Select value={(config.send_timing as string) || "immediate"} onValueChange={(v) => onChange("send_timing", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="immediate">Immediately after trigger</SelectItem>
+                  <SelectItem value="specific_time">At specific time</SelectItem>
+                  <SelectItem value="business_hours">During business hours</SelectItem>
+                  <SelectItem value="optimal">Optimal send time</SelectItem>
+                </SelectContent>
+              </Select>
+            </FieldGroup>
+            {config.send_timing === "specific_time" && (
+              <>
+                <FieldGroup label="Time">
+                  <Input type="time" value={(config.send_time as string) || "09:00"} onChange={(e) => onChange("send_time", e.target.value)} />
+                </FieldGroup>
+                <FieldGroup label="Timezone">
+                  <Select value={(config.send_timezone as string) || "UTC"} onValueChange={(v) => onChange("send_timezone", v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="UTC">UTC</SelectItem>
+                      <SelectItem value="recipient">Recipient's timezone</SelectItem>
+                      <SelectItem value="America/New_York">Eastern (US)</SelectItem>
+                      <SelectItem value="America/Los_Angeles">Pacific (US)</SelectItem>
+                      <SelectItem value="Europe/London">London (GMT)</SelectItem>
+                      <SelectItem value="Asia/Kolkata">India (IST)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FieldGroup>
+              </>
+            )}
+            {config.send_timing === "business_hours" && (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <FieldGroup label="From"><Input type="time" value={(config.bh_start as string) || "09:00"} onChange={(e) => onChange("bh_start", e.target.value)} className="text-xs" /></FieldGroup>
+                  <FieldGroup label="To"><Input type="time" value={(config.bh_end as string) || "17:00"} onChange={(e) => onChange("bh_end", e.target.value)} className="text-xs" /></FieldGroup>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Emails outside these hours are queued for the next window</p>
+              </div>
+            )}
+            {config.send_timing === "optimal" && (
+              <p className="text-[11px] text-muted-foreground bg-primary/5 rounded-md p-2 border border-primary/10">📊 Sent at optimal time per recipient based on engagement history</p>
+            )}
+          </div>
+        )}
+      </div>
+      {nodeType === "send_reengagement" && (
+        <div className="pt-2 border-t border-border/50 space-y-3">
+          <FieldGroup label="Max per Batch">
+            <Select value={(config.batch_size as string) || "50"} onValueChange={(v) => onChange("batch_size", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </FieldGroup>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ────────────────── Action Config ────────────────── */
 
 const ActionConfig = ({
@@ -409,32 +609,7 @@ const ActionConfig = ({
     case "send_email":
     case "send_reengagement":
       return (
-        <div className="space-y-4">
-          <FieldGroup label="Email Template">
-            <Input
-              placeholder="e.g., Welcome Email v2"
-              value={(config.template_name as string) || ""}
-              onChange={(e) => onChange("template_name", e.target.value)}
-            />
-          </FieldGroup>
-          <FieldGroup label="Subject Line">
-            <Input
-              placeholder="e.g., {{first_name}}, check this out!"
-              value={(config.subject as string) || ""}
-              onChange={(e) => onChange("subject", e.target.value)}
-            />
-            <p className="text-[11px] text-muted-foreground mt-1">
-              Supports merge tags like {"{{first_name}}"}
-            </p>
-          </FieldGroup>
-          <FieldGroup label="Sender Name (optional)">
-            <Input
-              placeholder="e.g., Sarah from Acme"
-              value={(config.sender_name as string) || ""}
-              onChange={(e) => onChange("sender_name", e.target.value)}
-            />
-          </FieldGroup>
-        </div>
+        <SendEmailConfig config={config} onChange={onChange} nodeType={nodeType} />
       );
 
     case "add_tag":
