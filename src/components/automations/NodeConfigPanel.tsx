@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -15,6 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 interface NodeConfigPanelProps {
   step: FlowStep | null;
@@ -409,32 +413,7 @@ const ActionConfig = ({
     case "send_email":
     case "send_reengagement":
       return (
-        <div className="space-y-4">
-          <FieldGroup label="Email Template">
-            <Input
-              placeholder="e.g., Welcome Email v2"
-              value={(config.template_name as string) || ""}
-              onChange={(e) => onChange("template_name", e.target.value)}
-            />
-          </FieldGroup>
-          <FieldGroup label="Subject Line">
-            <Input
-              placeholder="e.g., {{first_name}}, check this out!"
-              value={(config.subject as string) || ""}
-              onChange={(e) => onChange("subject", e.target.value)}
-            />
-            <p className="text-[11px] text-muted-foreground mt-1">
-              Supports merge tags like {"{{first_name}}"}
-            </p>
-          </FieldGroup>
-          <FieldGroup label="Sender Name (optional)">
-            <Input
-              placeholder="e.g., Sarah from Acme"
-              value={(config.sender_name as string) || ""}
-              onChange={(e) => onChange("sender_name", e.target.value)}
-            />
-          </FieldGroup>
-        </div>
+        <SendEmailConfig config={config} onChange={onChange} nodeType={nodeType} />
       );
 
     case "add_tag":
