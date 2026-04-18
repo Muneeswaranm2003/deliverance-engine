@@ -17,9 +17,14 @@ import {
   GitBranch,
   Timer,
   Zap,
-  ChevronDown,
+  ChevronRight,
   Search,
-  GripVertical,
+  ArrowRightLeft,
+  Bot,
+  Database,
+  Cpu,
+  Wrench,
+  Sparkles,
 } from "lucide-react";
 import { NodeConfig, nodeStyles } from "./flowTypes";
 import { Input } from "@/components/ui/input";
@@ -69,7 +74,7 @@ const nodeCategories: {
   },
   {
     category: "condition",
-    label: "Conditions",
+    label: "Logic",
     nodes: [
       { id: "if_opened", name: "If Opened", icon: GitBranch, category: "condition", description: "Branch based on open status" },
       { id: "if_clicked", name: "If Clicked", icon: GitBranch, category: "condition", description: "Branch based on click status" },
@@ -114,38 +119,38 @@ export const NodePalette = ({ onDragStart, onDragEnd }: NodePaletteProps) => {
   };
 
   const categoryIcons = {
-    trigger: Zap,
+    trigger: ArrowRightLeft,
     delay: Timer,
     action: Send,
     condition: GitBranch,
   };
 
   return (
-    <div className="w-64 shrink-0 border-r border-border/50 bg-card/40 backdrop-blur-sm flex flex-col">
+    <div className="w-64 shrink-0 border-r border-border/40 bg-[hsl(var(--card))]/80 backdrop-blur-xl flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-border/50">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Zap className="w-3.5 h-3.5 text-primary" />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold">Components</h3>
-            <p className="text-[10px] text-muted-foreground">Drag to canvas</p>
-          </div>
-        </div>
-        <div className="relative">
+      <div className="px-3 py-3 border-b border-border/40">
+        <div className="relative mb-2">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
-            placeholder="Search nodes..."
+            placeholder="Search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-8 pl-8 text-xs bg-secondary/50 border-border/50"
+            className="h-8 pl-8 pr-8 text-xs bg-secondary/40 border-border/40 focus-visible:ring-1 focus-visible:ring-primary/40"
           />
+          <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] px-1.5 py-0.5 rounded bg-secondary/80 text-muted-foreground border border-border/40 font-mono">
+            /
+          </kbd>
+        </div>
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[11px] font-semibold text-foreground/80 uppercase tracking-wider">
+            Components
+          </span>
+          <Sparkles className="w-3 h-3 text-muted-foreground/50" />
         </div>
       </div>
 
       {/* Categories */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-1">
+      <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
         {filteredCategories.map((cat) => {
           const styles = nodeStyles[cat.category];
           const isExpanded = search.trim()
@@ -154,46 +159,30 @@ export const NodePalette = ({ onDragStart, onDragEnd }: NodePaletteProps) => {
           const CatIcon = categoryIcons[cat.category];
 
           return (
-            <div key={cat.category} className="rounded-xl overflow-hidden">
+            <div key={cat.category}>
               <button
                 onClick={() => toggleCategory(cat.category)}
                 className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium rounded-xl transition-all",
-                  isExpanded
-                    ? cn(styles.bg, "border", styles.border)
-                    : "hover:bg-secondary/60"
+                  "w-full flex items-center gap-2.5 px-2.5 py-2 text-sm rounded-lg transition-all",
+                  "hover:bg-secondary/50",
+                  isExpanded && "bg-secondary/30"
                 )}
               >
-                <div
+                <ChevronRight
                   className={cn(
-                    "w-5 h-5 rounded-md flex items-center justify-center shrink-0",
-                    isExpanded ? styles.iconBg : "bg-muted"
-                  )}
-                >
-                  <CatIcon
-                    className={cn(
-                      "w-3 h-3",
-                      isExpanded ? styles.iconColor : "text-muted-foreground"
-                    )}
-                  />
-                </div>
-                <span
-                  className={cn(
-                    "flex-1 text-left",
-                    isExpanded ? styles.iconColor : "text-foreground"
-                  )}
-                >
-                  {cat.label}
-                </span>
-                <span className="text-[10px] text-muted-foreground tabular-nums">
-                  {cat.nodes.length}
-                </span>
-                <ChevronDown
-                  className={cn(
-                    "w-3.5 h-3.5 transition-transform text-muted-foreground",
-                    isExpanded && "rotate-180"
+                    "w-3.5 h-3.5 text-muted-foreground/60 transition-transform shrink-0",
+                    isExpanded && "rotate-90"
                   )}
                 />
+                <CatIcon
+                  className={cn(
+                    "w-4 h-4 shrink-0",
+                    isExpanded ? styles.iconColor : "text-muted-foreground"
+                  )}
+                />
+                <span className="flex-1 text-left text-[13px] font-medium text-foreground/90">
+                  {cat.label}
+                </span>
               </button>
               <AnimatePresence>
                 {isExpanded && (
@@ -204,7 +193,7 @@ export const NodePalette = ({ onDragStart, onDragEnd }: NodePaletteProps) => {
                     transition={{ duration: 0.2, ease: "easeInOut" }}
                     className="overflow-hidden"
                   >
-                    <div className="py-1.5 px-1 space-y-1">
+                    <div className="pt-1 pb-1.5 pl-3 space-y-0.5">
                       {cat.nodes.map((node) => (
                         <motion.div
                           key={node.id}
@@ -212,35 +201,26 @@ export const NodePalette = ({ onDragStart, onDragEnd }: NodePaletteProps) => {
                           onDragStart={() => onDragStart(node)}
                           onDragEnd={onDragEnd}
                           whileHover={{ x: 2, transition: { duration: 0.15 } }}
-                          whileTap={{ scale: 0.97 }}
+                          whileTap={{ scale: 0.98 }}
                           className={cn(
-                            "group flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-grab active:cursor-grabbing",
-                            "border border-transparent transition-all duration-200",
-                            "hover:border-border/50 hover:bg-secondary/40 hover:shadow-sm"
+                            "group flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-md cursor-grab active:cursor-grabbing",
+                            "border-l border-border/40 transition-all duration-200",
+                            "hover:border-l-primary/60 hover:bg-secondary/40"
                           )}
                         >
-                          <GripVertical className="w-3 h-3 text-muted-foreground/30 group-hover:text-muted-foreground/60 shrink-0 transition-colors" />
                           <div
                             className={cn(
-                              "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all",
-                              styles.iconBg,
-                              "group-hover:shadow-sm"
+                              "w-6 h-6 rounded-md flex items-center justify-center shrink-0",
+                              styles.iconBg
                             )}
                           >
                             <node.icon
-                              className={cn("w-4 h-4", styles.iconColor)}
+                              className={cn("w-3 h-3", styles.iconColor)}
                             />
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-medium truncate">
-                              {node.name}
-                            </p>
-                            {node.description && (
-                              <p className="text-[10px] text-muted-foreground truncate leading-tight mt-0.5">
-                                {node.description}
-                              </p>
-                            )}
-                          </div>
+                          <p className="text-[12px] font-medium truncate flex-1 text-foreground/85 group-hover:text-foreground">
+                            {node.name}
+                          </p>
                         </motion.div>
                       ))}
                     </div>
@@ -256,6 +236,18 @@ export const NodePalette = ({ onDragStart, onDragEnd }: NodePaletteProps) => {
             <p className="text-xs text-muted-foreground">No nodes found</p>
           </div>
         )}
+      </div>
+
+      {/* Footer hint */}
+      <div className="px-3 py-2.5 border-t border-border/40 bg-secondary/20">
+        <button className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-secondary/60 transition-colors">
+          <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center">
+            <Wrench className="w-3 h-3 text-primary" />
+          </div>
+          <span className="text-[11px] font-medium text-muted-foreground">
+            Discover more components
+          </span>
+        </button>
       </div>
     </div>
   );

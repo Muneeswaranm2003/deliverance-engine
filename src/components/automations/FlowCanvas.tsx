@@ -86,19 +86,27 @@ export const FlowCanvas = ({
   }, [onStepsChange]);
 
   return (
-    <div className="flex-1 min-h-0 overflow-auto relative">
-      {/* Dot grid background */}
+    <div className="flex-1 min-h-0 overflow-auto relative bg-[hsl(var(--background))]">
+      {/* Dot grid background - Langflow style */}
       <div
-        className="absolute inset-0 opacity-[0.03]"
+        className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage:
-            "radial-gradient(circle, currentColor 1px, transparent 1px)",
-          backgroundSize: "24px 24px",
+            "radial-gradient(circle, hsl(var(--foreground) / 0.08) 1px, transparent 1px)",
+          backgroundSize: "20px 20px",
+        }}
+      />
+      {/* Subtle radial glow */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse 60% 40% at 50% 50%, hsl(var(--primary) / 0.04), transparent 70%)",
         }}
       />
 
       <div className="relative z-10 p-6">
-        <div className="max-w-lg mx-auto">
+        <div className="max-w-md mx-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">

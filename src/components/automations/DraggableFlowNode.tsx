@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { motion, Reorder, useDragControls } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { GripVertical, X, Settings, ChevronRight } from "lucide-react";
+import { GripVertical, X, Settings, Play } from "lucide-react";
 import { FlowStep, nodeStyles } from "./flowTypes";
 import { nodeCategories } from "./NodePalette";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ function getConfigSummary(step: FlowStep): string {
     case "notify":
       return c.channel ? `Via ${c.channel}` : "Configured";
     default:
-      return "Configured ✓";
+      return "Configured";
   }
 }
 
@@ -59,12 +59,41 @@ export const DraggableFlowNode = ({
   const Icon = nodeConfig?.icon;
   const isConfigured = step.config && Object.keys(step.config).length > 0;
 
+  // Accent color per category for handles/glow
+  const accentClass = {
+    trigger: "bg-emerald-500",
+    delay: "bg-amber-500",
+    action: "bg-primary",
+    condition: "bg-violet-500",
+  }[step.type];
+
+  const accentRing = {
+    trigger: "ring-emerald-500/30",
+    delay: "ring-amber-500/30",
+    action: "ring-primary/30",
+    condition: "ring-violet-500/30",
+  }[step.type];
+
   return (
     <div className="relative">
       {/* Connector line from previous node */}
       {!isFirst && (
-        <div className="absolute -top-4 left-1/2 -translate-x-1/2 h-4 flex flex-col items-center">
-          <div className="w-0.5 h-full bg-gradient-to-b from-border to-primary/30" />
+        <div className="flex justify-center">
+          <svg
+            width="2"
+            height="32"
+            className="overflow-visible"
+          >
+            <line
+              x1="1"
+              y1="0"
+              x2="1"
+              y2="32"
+              stroke="hsl(var(--border))"
+              strokeWidth="1.5"
+              strokeDasharray="3 3"
+            />
+          </svg>
         </div>
       )}
 
@@ -81,100 +110,134 @@ export const DraggableFlowNode = ({
           exit={{ opacity: 0, scale: 0.95 }}
           transition={{ duration: 0.2 }}
           className={cn(
-            "group relative flex items-center gap-3 px-4 py-3.5 rounded-xl border backdrop-blur-sm",
-            "transition-shadow duration-200",
-            styles.bg,
-            styles.border,
-            "hover:shadow-md"
+            "group relative rounded-xl border backdrop-blur-md overflow-hidden",
+            "bg-[hsl(var(--card))]/95 border-border/60",
+            "transition-all duration-200",
+            "hover:border-border hover:shadow-[0_8px_30px_-8px_hsl(var(--primary)/0.25)]",
+            "shadow-[0_2px_10px_-2px_rgba(0,0,0,0.3)]"
           )}
         >
-          {/* Drag Handle */}
-          <button
-            className="cursor-grab active:cursor-grabbing touch-none opacity-40 group-hover:opacity-100 transition-opacity"
-            onPointerDown={(e) => dragControls.start(e)}
-          >
-            <GripVertical className="w-4 h-4 text-muted-foreground" />
-          </button>
-
-          {/* Step Number */}
-          <div
-            className={cn(
-              "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0",
-              styles.iconBg,
-              styles.iconColor
-            )}
-          >
-            {index + 1}
-          </div>
-
-          {/* Icon */}
-          {Icon && (
-            <div
-              className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
-                styles.iconBg
-              )}
-            >
-              <Icon className={cn("w-5 h-5", styles.iconColor)} />
+          {/* Input handle (left) - not on first */}
+          {!isFirst && (
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-10">
+              <div className={cn("w-3 h-3 rounded-full ring-4 ring-background", accentClass, accentRing)}>
+                <div className="w-full h-full rounded-full opacity-50 animate-pulse" style={{ background: "currentColor" }} />
+              </div>
+            </div>
+          )}
+          {/* Output handle (right) - not on last */}
+          {!isLast && (
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10">
+              <div className={cn("w-3 h-3 rounded-full ring-4 ring-background", accentClass, accentRing)} />
             </div>
           )}
 
-          {/* Content */}
-          <div className="min-w-0 flex-1">
-            <p className="font-medium text-sm truncate">
+          {/* Header bar */}
+          <div
+            className={cn(
+              "flex items-center gap-2 px-3 py-2 border-b border-border/40",
+              styles.bg
+            )}
+          >
+            {/* Drag handle */}
+            <button
+              className="cursor-grab active:cursor-grabbing touch-none opacity-40 group-hover:opacity-100 transition-opacity"
+              onPointerDown={(e) => dragControls.start(e)}
+            >
+              <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+
+            {/* Icon */}
+            {Icon && (
+              <div
+                className={cn(
+                  "w-6 h-6 rounded-md flex items-center justify-center shrink-0",
+                  styles.iconBg
+                )}
+              >
+                <Icon className={cn("w-3.5 h-3.5", styles.iconColor)} />
+              </div>
+            )}
+
+            {/* Title */}
+            <p className="text-[12px] font-semibold flex-1 truncate text-foreground/90">
               {nodeConfig?.name || step.nodeType}
             </p>
-            {isConfigured ? (
-              <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                {getConfigSummary(step)}
-              </p>
-            ) : (
-              <p className="text-[11px] text-muted-foreground capitalize flex items-center gap-1">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500/60 shrink-0" />
-                {onConfigure ? "Click to configure" : step.type}
-              </p>
-            )}
+
+            {/* Step badge */}
+            <span className={cn("text-[9px] font-mono px-1.5 py-0.5 rounded bg-background/60 border border-border/40", styles.iconColor)}>
+              {String(index + 1).padStart(2, "0")}
+            </span>
+
+            {/* Actions */}
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              {onConfigure && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  onClick={() => onConfigure(step)}
+                >
+                  <Settings className="w-3 h-3" />
+                </Button>
+              )}
+              {!isFirst && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                  onClick={() => onRemove(step.id)}
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              )}
+            </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            {onConfigure && (
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7"
-                onClick={() => onConfigure(step)}
-              >
-                <Settings className="w-3.5 h-3.5" />
-              </Button>
+          {/* Body */}
+          <div className="px-3 py-2.5 space-y-2">
+            {/* Description */}
+            {nodeConfig?.description && (
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                {nodeConfig.description}
+              </p>
             )}
-            {!isFirst && (
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                onClick={() => onRemove(step.id)}
-              >
-                <X className="w-3.5 h-3.5" />
-              </Button>
+
+            {/* Config status field */}
+            <button
+              onClick={() => onConfigure?.(step)}
+              className={cn(
+                "w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md",
+                "bg-background/60 border border-border/40 hover:border-primary/40 transition-colors",
+                "text-left"
+              )}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span
+                  className={cn(
+                    "w-1.5 h-1.5 rounded-full shrink-0",
+                    isConfigured ? "bg-emerald-500" : "bg-amber-500/70"
+                  )}
+                />
+                <span className="text-[11px] truncate text-foreground/80">
+                  {isConfigured ? getConfigSummary(step) : "Click to configure"}
+                </span>
+              </div>
+              <Settings className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+            </button>
+
+            {/* Output port label */}
+            {!isLast && (
+              <div className="flex items-center justify-end gap-1.5 pt-0.5">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground/60 font-medium">
+                  Output
+                </span>
+                <Play className={cn("w-2.5 h-2.5 fill-current", styles.iconColor)} />
+              </div>
             )}
           </div>
-
-          {/* Configure hint arrow */}
-          {onConfigure && !isConfigured && (
-            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/30 shrink-0 group-hover:hidden" />
-          )}
         </motion.div>
       </Reorder.Item>
-
-      {/* Connector line to next node */}
-      {!isLast && (
-        <div className="flex flex-col items-center py-0.5">
-          <div className="w-0.5 h-4 bg-gradient-to-b from-primary/30 to-border" />
-          <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[5px] border-l-transparent border-r-transparent border-t-primary/40" />
-        </div>
-      )}
     </div>
   );
 };
