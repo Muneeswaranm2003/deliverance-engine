@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useDraggable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import {
   Mail,
@@ -16,13 +17,9 @@ import {
   AlertTriangle,
   GitBranch,
   Timer,
-  Zap,
   ChevronRight,
   Search,
   ArrowRightLeft,
-  Bot,
-  Database,
-  Cpu,
   Wrench,
   Sparkles,
 } from "lucide-react";
@@ -83,12 +80,66 @@ const nodeCategories: {
   },
 ];
 
-interface NodePaletteProps {
-  onDragStart: (node: NodeConfig) => void;
-  onDragEnd: () => void;
+interface PaletteItemProps {
+  node: NodeConfig;
+  onAddClick: (node: NodeConfig) => void;
 }
 
-export const NodePalette = ({ onDragStart, onDragEnd }: NodePaletteProps) => {
+const PaletteItem = ({ node, onAddClick }: PaletteItemProps) => {
+  const styles = nodeStyles[node.category];
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `palette-${node.id}`,
+    data: { source: "palette", node },
+  });
+
+  return (
+    <motion.div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      whileHover={{ x: 2, transition: { duration: 0.15 } }}
+      whileTap={{ scale: 0.98 }}
+      className={cn(
+        "group flex items-center gap-2 pl-3 pr-1 py-1.5 rounded-md cursor-grab active:cursor-grabbing",
+        "border-l border-border/40 transition-all duration-200",
+        "hover:border-l-primary/60 hover:bg-secondary/40",
+        isDragging && "opacity-40"
+      )}
+      data-testid={`palette-node-${node.id}`}
+    >
+      <div
+        className={cn(
+          "w-6 h-6 rounded-md flex items-center justify-center shrink-0",
+          styles.iconBg
+        )}
+      >
+        <node.icon className={cn("w-3 h-3", styles.iconColor)} />
+      </div>
+      <p className="text-[12px] font-medium truncate flex-1 text-foreground/85 group-hover:text-foreground">
+        {node.name}
+      </p>
+      {/* Click-to-add fallback button (also helps automation) */}
+      <button
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          onAddClick(node);
+        }}
+        className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary flex items-center justify-center transition-opacity"
+        aria-label={`Add ${node.name}`}
+        data-testid={`palette-add-${node.id}`}
+      >
+        +
+      </button>
+    </motion.div>
+  );
+};
+
+interface NodePaletteProps {
+  onAddNode: (node: NodeConfig) => void;
+}
+
+export const NodePalette = ({ onAddNode }: NodePaletteProps) => {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(["trigger"])
   );
@@ -183,6 +234,9 @@ export const NodePalette = ({ onDragStart, onDragEnd }: NodePaletteProps) => {
                 <span className="flex-1 text-left text-[13px] font-medium text-foreground/90">
                   {cat.label}
                 </span>
+                <span className="text-[10px] text-muted-foreground tabular-nums">
+                  {cat.nodes.length}
+                </span>
               </button>
               <AnimatePresence>
                 {isExpanded && (
@@ -195,33 +249,11 @@ export const NodePalette = ({ onDragStart, onDragEnd }: NodePaletteProps) => {
                   >
                     <div className="pt-1 pb-1.5 pl-3 space-y-0.5">
                       {cat.nodes.map((node) => (
-                        <motion.div
+                        <PaletteItem
                           key={node.id}
-                          draggable
-                          onDragStart={() => onDragStart(node)}
-                          onDragEnd={onDragEnd}
-                          whileHover={{ x: 2, transition: { duration: 0.15 } }}
-                          whileTap={{ scale: 0.98 }}
-                          className={cn(
-                            "group flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-md cursor-grab active:cursor-grabbing",
-                            "border-l border-border/40 transition-all duration-200",
-                            "hover:border-l-primary/60 hover:bg-secondary/40"
-                          )}
-                        >
-                          <div
-                            className={cn(
-                              "w-6 h-6 rounded-md flex items-center justify-center shrink-0",
-                              styles.iconBg
-                            )}
-                          >
-                            <node.icon
-                              className={cn("w-3 h-3", styles.iconColor)}
-                            />
-                          </div>
-                          <p className="text-[12px] font-medium truncate flex-1 text-foreground/85 group-hover:text-foreground">
-                            {node.name}
-                          </p>
-                        </motion.div>
+                          node={node}
+                          onAddClick={onAddNode}
+                        />
                       ))}
                     </div>
                   </motion.div>
