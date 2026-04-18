@@ -1,8 +1,9 @@
 import { useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import { X, Plus, GitBranch, Check, XIcon, Settings } from "lucide-react";
-import { FlowStep, NodeConfig, nodeStyles } from "./flowTypes";
+import { FlowStep, nodeStyles } from "./flowTypes";
 import { nodeCategories } from "./NodePalette";
 import { Button } from "@/components/ui/button";
 
@@ -14,7 +15,6 @@ interface BranchingFlowNodeProps {
   onRemove: (id: string) => void;
   onUpdateStep: (id: string, updates: Partial<FlowStep>) => void;
   isDraggingFromPalette: boolean;
-  draggedNode: NodeConfig | null;
   onConfigureStep?: (step: FlowStep) => void;
 }
 
@@ -26,7 +26,6 @@ export const BranchingFlowNode = ({
   onRemove,
   onUpdateStep,
   isDraggingFromPalette,
-  draggedNode,
   onConfigureStep,
 }: BranchingFlowNodeProps) => {
   const styles = nodeStyles.condition;
@@ -42,32 +41,6 @@ export const BranchingFlowNode = ({
   const Icon = nodeConfig?.icon || GitBranch;
   const yesBranch = step.yesBranch || [];
   const noBranch = step.noBranch || [];
-
-  const handleAddToBranch = useCallback(
-    (branch: "yes" | "no", node: NodeConfig) => {
-      const newStep: FlowStep = {
-        id: `step-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        type: node.category,
-        nodeType: node.id,
-      };
-      if (branch === "yes") {
-        onUpdateStep(step.id, { yesBranch: [...yesBranch, newStep] });
-      } else {
-        onUpdateStep(step.id, { noBranch: [...noBranch, newStep] });
-      }
-    },
-    [step.id, yesBranch, noBranch, onUpdateStep]
-  );
-
-  const handleDropOnBranch = useCallback(
-    (e: React.DragEvent, branch: "yes" | "no") => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!draggedNode) return;
-      handleAddToBranch(branch, draggedNode);
-    },
-    [draggedNode, handleAddToBranch]
-  );
 
   const handleRemoveFromBranch = useCallback(
     (branch: "yes" | "no", id: string) => {
@@ -88,7 +61,6 @@ export const BranchingFlowNode = ({
 
   return (
     <div className="relative">
-      {/* Connector from previous node */}
       {!isFirst && (
         <div className="absolute -top-4 left-1/2 -translate-x-1/2 h-4 flex flex-col items-center">
           <div className="w-0.5 h-full bg-gradient-to-b from-border to-violet-500/40" />
@@ -110,12 +82,7 @@ export const BranchingFlowNode = ({
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-3.5">
           <div className="relative w-10 h-10 shrink-0">
-            <div
-              className={cn(
-                "absolute inset-0.5 rotate-45 rounded-lg",
-                styles.iconBg
-              )}
-            />
+            <div className={cn("absolute inset-0.5 rotate-45 rounded-lg", styles.iconBg)} />
             <div className="absolute inset-0 flex items-center justify-center">
               <Icon className={cn("w-5 h-5", styles.iconColor)} />
             </div>
@@ -161,6 +128,8 @@ export const BranchingFlowNode = ({
         {/* Branch paths */}
         <div className="grid grid-cols-2 gap-0 border-t border-violet-500/15">
           <BranchColumn
+            branchKey="yes"
+            stepId={step.id}
             label="Yes"
             labelIcon={<Check className="w-3 h-3" />}
             labelColor="text-emerald-500"
@@ -169,10 +138,11 @@ export const BranchingFlowNode = ({
             accentColor="border-emerald-500/40"
             steps={yesBranch}
             onRemoveStep={(id) => handleRemoveFromBranch("yes", id)}
-            onDrop={(e) => handleDropOnBranch(e, "yes")}
             isDraggingFromPalette={isDraggingFromPalette}
           />
           <BranchColumn
+            branchKey="no"
+            stepId={step.id}
             label="No"
             labelIcon={<XIcon className="w-3 h-3" />}
             labelColor="text-red-400"
@@ -181,13 +151,11 @@ export const BranchingFlowNode = ({
             accentColor="border-red-400/40"
             steps={noBranch}
             onRemoveStep={(id) => handleRemoveFromBranch("no", id)}
-            onDrop={(e) => handleDropOnBranch(e, "no")}
             isDraggingFromPalette={isDraggingFromPalette}
           />
         </div>
       </motion.div>
 
-      {/* Connector to next node */}
       {!isLast && (
         <div className="flex flex-col items-center py-0.5">
           <div className="w-0.5 h-4 bg-gradient-to-b from-violet-500/40 to-border" />
@@ -198,8 +166,9 @@ export const BranchingFlowNode = ({
   );
 };
 
-/** A single branch column (Yes or No) */
 interface BranchColumnProps {
+  branchKey: "yes" | "no";
+  stepId: string;
   label: string;
   labelIcon: React.ReactNode;
   labelColor: string;
@@ -208,11 +177,12 @@ interface BranchColumnProps {
   accentColor: string;
   steps: FlowStep[];
   onRemoveStep: (id: string) => void;
-  onDrop: (e: React.DragEvent) => void;
   isDraggingFromPalette: boolean;
 }
 
 const BranchColumn = ({
+  branchKey,
+  stepId,
   label,
   labelIcon,
   labelColor,
@@ -221,19 +191,16 @@ const BranchColumn = ({
   accentColor,
   steps,
   onRemoveStep,
-  onDrop,
   isDraggingFromPalette,
 }: BranchColumnProps) => {
+  const dropId = `branch-${stepId}-${branchKey}`;
+  const { isOver, setNodeRef } = useDroppable({
+    id: dropId,
+    data: { source: "branch-drop", stepId, branch: branchKey },
+  });
+
   return (
-    <div
-      className={cn(
-        "p-3 min-h-[90px]",
-        bgColor,
-        "first:border-r",
-        borderColor
-      )}
-    >
-      {/* Branch label */}
+    <div className={cn("p-3 min-h-[90px]", bgColor, "first:border-r", borderColor)}>
       <div
         className={cn(
           "inline-flex items-center gap-1.5 mb-3 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full",
@@ -245,7 +212,6 @@ const BranchColumn = ({
         {label} Path
       </div>
 
-      {/* Branch steps */}
       <div className="space-y-1.5">
         <AnimatePresence mode="popLayout">
           {steps.map((branchStep) => (
@@ -258,19 +224,16 @@ const BranchColumn = ({
         </AnimatePresence>
       </div>
 
-      {/* Drop zone */}
       <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        }}
-        onDrop={onDrop}
+        ref={setNodeRef}
         className={cn(
           "mt-2 border-2 border-dashed rounded-lg py-2.5 text-center transition-all",
           isDraggingFromPalette
             ? cn(accentColor, bgColor, "opacity-100")
-            : "border-border/20 opacity-50"
+            : "border-border/20 opacity-50",
+          isOver && "ring-2 ring-primary/40 scale-[1.02]"
         )}
+        data-testid={`branch-drop-${dropId}`}
       >
         <Plus
           className={cn(
@@ -286,7 +249,6 @@ const BranchColumn = ({
   );
 };
 
-/** A compact node rendered inside a branch */
 const BranchStepNode = ({
   step,
   onRemove,

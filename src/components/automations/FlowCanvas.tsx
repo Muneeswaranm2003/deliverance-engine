@@ -1,8 +1,13 @@
-import { useState, useCallback } from "react";
-import { motion, Reorder, AnimatePresence } from "framer-motion";
+import { useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
 import { Plus, Trash2, Workflow, Zap, ArrowDown } from "lucide-react";
-import { FlowStep, NodeConfig } from "./flowTypes";
+import { FlowStep } from "./flowTypes";
 import { DraggableFlowNode } from "./DraggableFlowNode";
 import { BranchingFlowNode } from "./BranchingFlowNode";
 import { Button } from "@/components/ui/button";
@@ -11,19 +16,76 @@ interface FlowCanvasProps {
   steps: FlowStep[];
   onStepsChange: (steps: FlowStep[]) => void;
   isDraggingFromPalette: boolean;
-  draggedNode: NodeConfig | null;
   onConfigureStep?: (step: FlowStep) => void;
 }
+
+const CanvasDropZone = ({
+  id,
+  isDraggingFromPalette,
+  isFirst,
+  isEmpty,
+}: {
+  id: string;
+  isDraggingFromPalette: boolean;
+  isFirst?: boolean;
+  isEmpty?: boolean;
+}) => {
+  const { isOver, setNodeRef } = useDroppable({
+    id,
+    data: { source: "canvas-drop", targetId: id },
+  });
+
+  if (!isDraggingFromPalette && !isEmpty) return null;
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "border-2 border-dashed rounded-xl text-center transition-all duration-200",
+        isFirst ? "p-6 mb-4" : "py-3 my-2",
+        isOver
+          ? "border-primary bg-primary/5 scale-[1.01] shadow-[0_0_20px_hsl(var(--primary)/0.15)]"
+          : isFirst
+          ? "border-border/40 bg-secondary/10"
+          : "border-border/20",
+        isFirst && isEmpty && "min-h-[160px] flex flex-col items-center justify-center"
+      )}
+      data-testid={`drop-zone-${id}`}
+    >
+      <div
+        className={cn(
+          "rounded-xl flex items-center justify-center mx-auto transition-colors",
+          isFirst ? "w-10 h-10 mb-2" : "w-6 h-6",
+          isOver ? "bg-primary/10" : "bg-secondary/40"
+        )}
+      >
+        <Plus
+          className={cn(
+            isFirst ? "w-5 h-5" : "w-4 h-4",
+            isOver ? "text-primary" : "text-muted-foreground/50"
+          )}
+        />
+      </div>
+      {isFirst && (
+        <p
+          className={cn(
+            "text-xs font-medium",
+            isOver ? "text-primary" : "text-muted-foreground"
+          )}
+        >
+          {isEmpty ? "Drop your first node here" : "Drop here to add at start"}
+        </p>
+      )}
+    </div>
+  );
+};
 
 export const FlowCanvas = ({
   steps,
   onStepsChange,
   isDraggingFromPalette,
-  draggedNode,
   onConfigureStep,
 }: FlowCanvasProps) => {
-  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
-
   const handleRemoveStep = useCallback(
     (id: string) => {
       onStepsChange(steps.filter((s) => s.id !== id));
@@ -33,52 +95,9 @@ export const FlowCanvas = ({
 
   const handleUpdateStep = useCallback(
     (id: string, updates: Partial<FlowStep>) => {
-      onStepsChange(
-        steps.map((s) => (s.id === id ? { ...s, ...updates } : s))
-      );
+      onStepsChange(steps.map((s) => (s.id === id ? { ...s, ...updates } : s)));
     },
     [steps, onStepsChange]
-  );
-
-  const handleDrop = useCallback(
-    (index: number) => {
-      if (!draggedNode) return;
-      const newStep: FlowStep = {
-        id: `step-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        type: draggedNode.category,
-        nodeType: draggedNode.id,
-        ...(draggedNode.category === "condition"
-          ? { yesBranch: [], noBranch: [] }
-          : {}),
-      };
-      const newSteps = [...steps];
-      newSteps.splice(index, 0, newStep);
-      onStepsChange(newSteps);
-      setDropTargetIndex(null);
-    },
-    [draggedNode, steps, onStepsChange]
-  );
-
-  const handleDragOver = useCallback(
-    (e: React.DragEvent, index: number) => {
-      e.preventDefault();
-      if (isDraggingFromPalette) {
-        setDropTargetIndex(index);
-      }
-    },
-    [isDraggingFromPalette]
-  );
-
-  const handleDragLeave = useCallback(() => {
-    setDropTargetIndex(null);
-  }, []);
-
-  const handleDropOnZone = useCallback(
-    (e: React.DragEvent, index: number) => {
-      e.preventDefault();
-      handleDrop(index);
-    },
-    [handleDrop]
   );
 
   const handleClearAll = useCallback(() => {
@@ -96,7 +115,6 @@ export const FlowCanvas = ({
           backgroundSize: "20px 20px",
         }}
       />
-      {/* Subtle radial glow */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -135,12 +153,12 @@ export const FlowCanvas = ({
             )}
           </div>
 
-          {/* Empty state */}
+          {/* Empty state (no drag) */}
           {steps.length === 0 && !isDraggingFromPalette && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="border-2 border-dashed border-border/50 rounded-2xl p-10 text-center"
+              className="border-2 border-dashed border-border/50 rounded-2xl p-10 text-center mb-4"
             >
               <div className="w-14 h-14 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center mx-auto mb-4">
                 <Zap className="w-7 h-7 text-primary/40" />
@@ -149,8 +167,8 @@ export const FlowCanvas = ({
                 Build Your Automation
               </h4>
               <p className="text-xs text-muted-foreground max-w-[240px] mx-auto leading-relaxed">
-                Drag a trigger from the components panel to get started, then add
-                actions, delays, and conditions.
+                Drag a trigger from the components panel — or hover and click the
+                "+" to add it.
               </p>
               <div className="flex items-center justify-center gap-4 mt-5">
                 {["Trigger", "Delay", "Action"].map((label, i) => (
@@ -167,69 +185,26 @@ export const FlowCanvas = ({
             </motion.div>
           )}
 
-          {/* Drop zone at top (when dragging or empty) */}
-          {(steps.length === 0 && isDraggingFromPalette) ||
-          (steps.length > 0 && isDraggingFromPalette) ? (
-            <div
-              onDragOver={(e) => handleDragOver(e, 0)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDropOnZone(e, 0)}
-              className={cn(
-                "border-2 border-dashed rounded-xl p-6 mb-4 text-center transition-all duration-200",
-                dropTargetIndex === 0
-                  ? "border-primary bg-primary/5 scale-[1.01] shadow-[0_0_20px_hsl(var(--primary)/0.1)]"
-                  : "border-border/40 bg-secondary/10",
-                steps.length === 0 && "min-h-[160px] flex flex-col items-center justify-center"
-              )}
-            >
-              <div
-                className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2 transition-colors",
-                  dropTargetIndex === 0
-                    ? "bg-primary/10"
-                    : "bg-secondary/40"
-                )}
-              >
-                <Plus
-                  className={cn(
-                    "w-5 h-5",
-                    dropTargetIndex === 0
-                      ? "text-primary"
-                      : "text-muted-foreground/50"
-                  )}
-                />
-              </div>
-              <p
-                className={cn(
-                  "text-xs font-medium",
-                  dropTargetIndex === 0
-                    ? "text-primary"
-                    : "text-muted-foreground"
-                )}
-              >
-                {steps.length === 0
-                  ? "Drop your first node here"
-                  : "Drop here to add at start"}
-              </p>
-            </div>
-          ) : null}
+          {/* Top drop zone */}
+          {(isDraggingFromPalette || steps.length === 0) && (
+            <CanvasDropZone
+              id="drop-0"
+              isDraggingFromPalette={isDraggingFromPalette || steps.length === 0}
+              isFirst
+              isEmpty={steps.length === 0}
+            />
+          )}
 
-          {/* Flow Steps */}
-          <AnimatePresence mode="popLayout">
-            <Reorder.Group
-              axis="y"
-              values={steps}
-              onReorder={onStepsChange}
-              className="space-y-0"
-            >
-              {steps.map((step, index) => (
-                <div key={step.id}>
-                  {step.type === "condition" ? (
-                    <Reorder.Item
-                      value={step}
-                      dragListener={false}
-                      className="relative"
-                    >
+          {/* Flow Steps - Sortable */}
+          <SortableContext
+            items={steps.map((s) => s.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <AnimatePresence mode="popLayout">
+              <div className="space-y-0">
+                {steps.map((step, index) => (
+                  <div key={step.id}>
+                    {step.type === "condition" ? (
                       <BranchingFlowNode
                         step={step}
                         index={index}
@@ -238,51 +213,29 @@ export const FlowCanvas = ({
                         onRemove={handleRemoveStep}
                         onUpdateStep={handleUpdateStep}
                         isDraggingFromPalette={isDraggingFromPalette}
-                        draggedNode={draggedNode}
                         onConfigureStep={onConfigureStep}
                       />
-                    </Reorder.Item>
-                  ) : (
-                    <DraggableFlowNode
-                      step={step}
-                      index={index}
-                      isFirst={index === 0}
-                      isLast={index === steps.length - 1}
-                      onRemove={handleRemoveStep}
-                      onConfigure={onConfigureStep}
-                    />
-                  )}
-
-                  {/* Drop zone after each step */}
-                  {isDraggingFromPalette && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      onDragOver={(e) => handleDragOver(e, index + 1)}
-                      onDragLeave={handleDragLeave}
-                      onDrop={(e) => handleDropOnZone(e, index + 1)}
-                      className={cn(
-                        "border-2 border-dashed rounded-xl py-3 my-2 text-center transition-all duration-200",
-                        dropTargetIndex === index + 1
-                          ? "border-primary bg-primary/5 shadow-[0_0_15px_hsl(var(--primary)/0.08)]"
-                          : "border-border/20"
-                      )}
-                    >
-                      <Plus
-                        className={cn(
-                          "w-4 h-4 mx-auto",
-                          dropTargetIndex === index + 1
-                            ? "text-primary"
-                            : "text-muted-foreground/30"
-                        )}
+                    ) : (
+                      <DraggableFlowNode
+                        step={step}
+                        index={index}
+                        isFirst={index === 0}
+                        isLast={index === steps.length - 1}
+                        onRemove={handleRemoveStep}
+                        onConfigure={onConfigureStep}
                       />
-                    </motion.div>
-                  )}
-                </div>
-              ))}
-            </Reorder.Group>
-          </AnimatePresence>
+                    )}
+
+                    {/* Drop zone after each step */}
+                    <CanvasDropZone
+                      id={`drop-${index + 1}`}
+                      isDraggingFromPalette={isDraggingFromPalette}
+                    />
+                  </div>
+                ))}
+              </div>
+            </AnimatePresence>
+          </SortableContext>
 
           {/* End of flow indicator */}
           {steps.length > 0 && !isDraggingFromPalette && (
