@@ -20,6 +20,7 @@ import Integrations from "./pages/Integrations";
 import Settings from "./pages/Settings";
 import SuppressionList from "./pages/SuppressionList";
 import ListSegmentation from "./pages/ListSegmentation";
+import Deliverability from "./pages/Deliverability";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -135,6 +136,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <ListSegmentation />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/deliverability"
+              element={
+                <ProtectedRoute>
+                  <Deliverability />
                 </ProtectedRoute>
               }
             />

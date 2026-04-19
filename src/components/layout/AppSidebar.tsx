@@ -16,6 +16,7 @@ import {
   Ban,
   ListFilter,
   Send,
+  ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
 import { Mail } from "lucide-react";
@@ -29,6 +30,7 @@ const navItems = [
   { label: "Automations", href: "/automations", icon: Zap },
   { label: "Automation Logs", href: "/automations/logs", icon: Activity },
   { label: "Templates", href: "/templates", icon: FileText },
+  { label: "Deliverability", href: "/deliverability", icon: ShieldCheck },
   { label: "Integrations", href: "/integrations", icon: Link2 },
   { label: "Settings", href: "/settings", icon: Settings },
 ];

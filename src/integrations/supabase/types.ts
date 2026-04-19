@@ -386,6 +386,45 @@ export type Database = {
         }
         Relationships: []
       }
+      dns_check_results: {
+        Row: {
+          checked_at: string
+          created_at: string
+          domain: string
+          id: string
+          recommendation: string | null
+          record_type: string
+          selector: string | null
+          status: string
+          user_id: string
+          value: string | null
+        }
+        Insert: {
+          checked_at?: string
+          created_at?: string
+          domain: string
+          id?: string
+          recommendation?: string | null
+          record_type: string
+          selector?: string | null
+          status: string
+          user_id: string
+          value?: string | null
+        }
+        Update: {
+          checked_at?: string
+          created_at?: string
+          domain?: string
+          id?: string
+          recommendation?: string | null
+          record_type?: string
+          selector?: string | null
+          status?: string
+          user_id?: string
+          value?: string | null
+        }
+        Relationships: []
+      }
       email_events: {
         Row: {
           bounce_reason: string | null
@@ -659,6 +698,45 @@ export type Database = {
         }
         Relationships: []
       }
+      ip_rdns_checks: {
+        Row: {
+          checked_at: string
+          created_at: string
+          expected_hostname: string | null
+          id: string
+          ip_address: string
+          ip_pool_id: string | null
+          notes: string | null
+          ptr_record: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          checked_at?: string
+          created_at?: string
+          expected_hostname?: string | null
+          id?: string
+          ip_address: string
+          ip_pool_id?: string | null
+          notes?: string | null
+          ptr_record?: string | null
+          status: string
+          user_id: string
+        }
+        Update: {
+          checked_at?: string
+          created_at?: string
+          expected_hostname?: string | null
+          id?: string
+          ip_address?: string
+          ip_pool_id?: string | null
+          notes?: string | null
+          ptr_record?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       list_segments: {
         Row: {
           contact_count: number | null
@@ -773,6 +851,48 @@ export type Database = {
           },
         ]
       }
+      routing_rules: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          match_type: string
+          match_value: string | null
+          name: string
+          priority: number
+          target_id: string
+          target_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          match_type: string
+          match_value?: string | null
+          name: string
+          priority?: number
+          target_id: string
+          target_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          match_type?: string
+          match_value?: string | null
+          name?: string
+          priority?: number
+          target_id?: string
+          target_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sender_domains: {
         Row: {
           created_at: string
@@ -809,6 +929,72 @@ export type Database = {
           is_verified?: boolean | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      smtp_servers: {
+        Row: {
+          created_at: string
+          daily_limit: number | null
+          emails_sent_today: number
+          encryption: string
+          from_email: string
+          from_name: string
+          host: string
+          id: string
+          is_active: boolean
+          label: string
+          last_error: string | null
+          last_reset_at: string | null
+          last_used_at: string | null
+          password: string
+          port: number
+          priority: number
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          daily_limit?: number | null
+          emails_sent_today?: number
+          encryption?: string
+          from_email: string
+          from_name?: string
+          host: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          last_error?: string | null
+          last_reset_at?: string | null
+          last_used_at?: string | null
+          password: string
+          port?: number
+          priority?: number
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          daily_limit?: number | null
+          emails_sent_today?: number
+          encryption?: string
+          from_email?: string
+          from_name?: string
+          host?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          last_error?: string | null
+          last_reset_at?: string | null
+          last_used_at?: string | null
+          password?: string
+          port?: number
+          priority?: number
+          updated_at?: string
+          user_id?: string
+          username?: string
         }
         Relationships: []
       }
