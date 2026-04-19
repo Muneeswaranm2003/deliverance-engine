@@ -180,6 +180,111 @@ export const MultiStepFlowBuilder = ({
   const isValid = name.trim() && hasTrigger && hasAction;
   const isDraggingFromPalette = activeDragNode !== null;
 
+  // ============================================================
+  // STEP 1: Name & description (clean focused intro screen)
+  // ============================================================
+  if (wizardStep === "details") {
+    const canContinue = name.trim().length > 0;
+    return (
+      <div className="flex flex-col h-[75vh]">
+        <div className="flex-1 overflow-y-auto px-6 py-8">
+          <div className="max-w-xl mx-auto space-y-6">
+            {/* Hero */}
+            <div className="text-center space-y-3">
+              <div className="inline-flex w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 items-center justify-center">
+                <Sparkles className="w-7 h-7 text-primary" />
+              </div>
+              <div className="space-y-1">
+                <h2 className="text-xl font-semibold tracking-tight">
+                  {initialData ? "Edit your automation" : "Name your automation"}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Give it a clear name so you can find it later. You'll build the flow next.
+                </p>
+              </div>
+            </div>
+
+            {/* Step indicator */}
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-semibold">
+                  1
+                </span>
+                <span className="font-medium text-foreground">Details</span>
+              </span>
+              <div className="w-8 h-px bg-border" />
+              <span className="flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-secondary border border-border flex items-center justify-center text-[10px] font-semibold">
+                  2
+                </span>
+                <span>Build flow</span>
+              </span>
+            </div>
+
+            {/* Form */}
+            <div className="space-y-5 rounded-xl border border-border/50 bg-card/40 backdrop-blur-sm p-6">
+              <div className="space-y-2">
+                <Label htmlFor="flow-name" className="text-sm font-semibold">
+                  Automation name <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="flow-name"
+                  placeholder="e.g., Welcome series for new subscribers"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && canContinue) setWizardStep("builder");
+                  }}
+                  autoFocus
+                  className="h-11 bg-secondary/30 border-border/60 focus:border-primary/60 text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Used to identify this automation across your dashboard.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="flow-description" className="text-sm font-semibold">
+                  Description{" "}
+                  <span className="font-normal text-muted-foreground">(optional)</span>
+                </Label>
+                <Textarea
+                  id="flow-description"
+                  placeholder="Describe what this automation does and when it should run..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="resize-none h-20 text-sm bg-secondary/30 border-border/60"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="shrink-0 px-5 py-3 border-t border-border/50 bg-card/60 backdrop-blur-sm">
+          <div className="flex items-center justify-between max-w-xl mx-auto w-full">
+            <Button variant="outline" size="sm" onClick={onCancel} className="h-9">
+              Cancel
+            </Button>
+            <Button
+              variant="hero"
+              size="sm"
+              onClick={() => setWizardStep("builder")}
+              disabled={!canContinue}
+              className="h-9"
+            >
+              Continue to flow builder
+              <ArrowRight className="w-4 h-4 ml-1.5" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================
+  // STEP 2: Flow builder (palette + canvas + config)
+  // ============================================================
   return (
     <DndContext
       sensors={sensors}
@@ -188,39 +293,43 @@ export const MultiStepFlowBuilder = ({
       onDragEnd={handleDragEnd}
     >
       <div className="flex flex-col h-[75vh]">
-        {/* Header */}
-        <div className="shrink-0 px-5 py-4 border-b border-border/50 bg-card/60 backdrop-blur-sm">
-          <div className="flex items-start gap-5">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-              <Workflow className="w-5 h-5 text-primary" />
+        {/* Compact header showing the named automation */}
+        <div className="shrink-0 px-5 py-3 border-b border-border/50 bg-card/60 backdrop-blur-sm">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setWizardStep("details")}
+              className="h-8 px-2 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+              <Workflow className="w-4 h-4 text-primary" />
             </div>
-            <div className="flex-1 space-y-3 min-w-0">
-              <div className="space-y-1">
-                <Label htmlFor="flow-name" className="text-xs font-semibold">
-                  Automation Name
-                </Label>
-                <Input
-                  id="flow-name"
-                  placeholder="e.g., Welcome series for new subscribers"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="h-9 bg-secondary/30 border-border/50 focus:border-primary/50"
-                />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold truncate">{name}</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setWizardStep("details")}
+                  className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-foreground gap-1"
+                >
+                  <Pencil className="w-3 h-3" />
+                  Edit details
+                </Button>
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="flow-description" className="text-xs font-semibold">
-                  Description{" "}
-                  <span className="font-normal text-muted-foreground">(optional)</span>
-                </Label>
-                <Textarea
-                  id="flow-description"
-                  placeholder="Describe what this automation does..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="resize-none h-14 text-sm bg-secondary/30 border-border/50"
-                />
-              </div>
+              {description && (
+                <p className="text-xs text-muted-foreground truncate">{description}</p>
+              )}
             </div>
+            <Badge variant="outline" className="text-[10px] gap-1 shrink-0">
+              <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[9px] font-semibold">
+                2
+              </span>
+              Build flow
+            </Badge>
           </div>
         </div>
 
@@ -343,5 +452,6 @@ export const MultiStepFlowBuilder = ({
         )}
       </DragOverlay>
     </DndContext>
+  );
   );
 };
