@@ -69,6 +69,11 @@ export const MultiStepFlowBuilder = ({
   const [steps, setSteps] = useState<FlowStep[]>(initialData?.steps || []);
   const [activeDragNode, setActiveDragNode] = useState<NodeConfig | null>(null);
   const [configuringStep, setConfiguringStep] = useState<FlowStep | null>(null);
+  // Wizard: step 1 = name/details, step 2 = flow builder.
+  // If editing existing automation with steps, jump straight to builder.
+  const [wizardStep, setWizardStep] = useState<"details" | "builder">(
+    initialData && initialData.steps.length > 0 ? "builder" : "details"
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
