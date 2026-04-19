@@ -25,6 +25,10 @@ import {
   CheckCircle2,
   AlertCircle,
   GitBranch,
+  ArrowRight,
+  ArrowLeft,
+  Pencil,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
