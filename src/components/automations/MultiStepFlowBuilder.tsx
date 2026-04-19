@@ -453,5 +453,4 @@ export const MultiStepFlowBuilder = ({
       </DragOverlay>
     </DndContext>
   );
-  );
 };
