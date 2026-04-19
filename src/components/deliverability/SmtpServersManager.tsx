@@ -66,16 +66,30 @@ interface SmtpServer {
   last_error: string | null;
 }
 
-const emptyForm = {
+type Encryption = "none" | "tls" | "ssl" | "starttls";
+
+interface SmtpForm {
+  label: string;
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  encryption: Encryption;
+  from_email: string;
+  from_name: string;
+  daily_limit: string | number;
+}
+
+const emptyForm: SmtpForm = {
   label: "Primary SMTP",
   host: "",
   port: 587,
   username: "",
   password: "",
-  encryption: "tls" as const,
+  encryption: "tls",
   from_email: "",
   from_name: "",
-  daily_limit: "" as string | number,
+  daily_limit: "",
 };
 
 export const SmtpServersManager = () => {
