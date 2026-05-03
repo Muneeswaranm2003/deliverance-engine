@@ -16,11 +16,7 @@ import {
   Shield,
   Bell,
   Save,
-  Key,
-  Globe,
 } from "lucide-react";
-import { ApiKeysManager } from "@/components/settings/ApiKeysManager";
-import { IpPoolsManager } from "@/components/settings/IpPoolsManager";
 import { toast } from "@/hooks/use-toast";
 
 const SettingsCard = ({
@@ -233,25 +229,6 @@ const Settings = () => {
           </div>
         </SettingsCard>
 
-        {/* API Keys Configuration */}
-        <SettingsCard
-          icon={Key}
-          title="API Keys"
-          description="Manage multiple API keys with rotation and failover"
-          delay={0.15}
-        >
-          <ApiKeysManager />
-        </SettingsCard>
-
-        {/* IP Pools & Reputation */}
-        <SettingsCard
-          icon={Globe}
-          title="IP Pools & Reputation"
-          description="Manage dedicated IPs, warmup schedules, and monitor reputation"
-          delay={0.2}
-        >
-          <IpPoolsManager />
-        </SettingsCard>
         {/* Security Settings */}
         <SettingsCard
           icon={Shield}
