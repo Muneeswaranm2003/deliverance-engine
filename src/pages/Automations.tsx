@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -11,23 +10,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AutomationFlowCard } from "@/components/automations/AutomationFlowCard";
-import { FlowBuilder } from "@/components/automations/FlowBuilder";
- import { MultiStepFlowBuilder } from "@/components/automations/MultiStepFlowBuilder";
- import { FlowStep } from "@/components/automations/flowTypes";
-import { motion } from "framer-motion";
+import { ImprovedAutomationCard } from "@/components/automations/ImprovedAutomationCard";
+import { ModernFlowEditor, FlowNode } from "@/components/automations/ModernFlowEditor";
+import { AutomationTemplateGrid, automationTemplates } from "@/components/automations/AutomationTemplates";
+import { AutomationAnalytics } from "@/components/automations/AutomationAnalytics";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
   Zap,
-  Clock,
   Loader2,
-  Send,
-  Copy,
-  ExternalLink,
-  RefreshCw,
-  UserX,
-  Workflow,
-   Layers,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,58 +37,10 @@ interface Automation {
   triggered_count: number;
   completed_count: number;
   created_at: string;
-  flow_config?: FlowStep[] | null;
-  description?: string | null;
+  flow_config?: unknown;
+  description?: string;
 }
 
-/** Convert a saved automation record back into flow builder data */
-const automationToFlowData = (automation: Automation): { name: string; description: string; steps: FlowStep[] } => {
-  // If we have a saved flow_config, use it directly
-  if (automation.flow_config && Array.isArray(automation.flow_config) && automation.flow_config.length > 0) {
-    return {
-      name: automation.name,
-      description: automation.description || "",
-      steps: automation.flow_config,
-    };
-  }
-
-  // Legacy fallback: reconstruct from flat fields
-  const steps: FlowStep[] = [];
-
-  steps.push({
-    id: `step-trigger-${automation.id}`,
-    type: "trigger",
-    nodeType: automation.trigger,
-  });
-
-  if (automation.delay) {
-    const reverseDelayMap: Record<string, string> = {
-      "1h": "wait_1h",
-      "1d": "wait_1d",
-      "3d": "wait_3d",
-      "1w": "wait_1w",
-    };
-    steps.push({
-      id: `step-delay-${automation.id}`,
-      type: "delay",
-      nodeType: reverseDelayMap[automation.delay] || "wait_custom",
-    });
-  }
-
-  steps.push({
-    id: `step-action-${automation.id}`,
-    type: "action",
-    nodeType: automation.action,
-  });
-
-  return {
-    name: automation.name,
-    description: automation.description || "",
-    steps,
-  };
-};
-
-/** Safely map a DB record to the local Automation type */
 const mapDbToAutomation = (a: Record<string, unknown>): Automation => ({
   id: a.id as string,
   name: a.name as string,
@@ -109,7 +53,7 @@ const mapDbToAutomation = (a: Record<string, unknown>): Automation => ({
   triggered_count: (a.triggered_count as number) || 0,
   completed_count: (a.completed_count as number) || 0,
   created_at: a.created_at as string,
-  flow_config: Array.isArray(a.flow_config) ? (a.flow_config as unknown as FlowStep[]) : undefined,
+  flow_config: a.flow_config,
   description: (a.description as string) || undefined,
 });
 
@@ -118,81 +62,10 @@ const Automations = () => {
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isReengaging, setIsReengaging] = useState(false);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isMultiStepDialogOpen, setIsMultiStepDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"all" | "templates" | "analytics" | "campaign" | "followup">("all");
+  const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [editingAutomation, setEditingAutomation] = useState<Automation | null>(null);
-  const [activeTab, setActiveTab] = useState<"campaign" | "followup">("campaign");
-  const [formData, setFormData] = useState({
-    name: "",
-    type: "campaign" as "campaign" | "followup",
-    trigger: "",
-    action: "",
-    delay: "",
-    webhook_url: "",
-  });
-
-  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webhook-handler`;
-  const scheduledUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-scheduled-automations`;
-  const reengagementUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-reengagement`;
-
-  const processScheduledAutomations = async () => {
-    setIsProcessing(true);
-    try {
-      const response = await fetch(scheduledUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await response.json();
-      
-      if (data.success) {
-        toast({
-          title: "Scheduled automations processed",
-          description: `Checked ${data.automations_checked} automations, processed ${data.total_contacts_processed} contacts`,
-        });
-        fetchAutomations();
-      } else {
-        throw new Error(data.error || 'Failed to process');
-      }
-    } catch (error) {
-      console.error('Error processing scheduled automations:', error);
-      toast({
-        title: "Error processing automations",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const processReengagement = async () => {
-    setIsReengaging(true);
-    try {
-      const response = await fetch(reengagementUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await response.json();
-      
-      if (data.success) {
-        toast({
-          title: "Re-engagement processed",
-          description: `Processed ${data.contacts_processed} contacts, ${data.newly_inactive} newly inactive, ${data.reengagement_triggered} re-engagement triggered`,
-        });
-      } else {
-        throw new Error(data.error || 'Failed to process');
-      }
-    } catch (error) {
-      console.error('Error processing re-engagement:', error);
-      toast({
-        title: "Error processing re-engagement",
-        variant: "destructive",
-      });
-    } finally {
-      setIsReengaging(false);
-    }
-  };
+  const [selectedAnalytics, setSelectedAnalytics] = useState<Automation | null>(null);
 
   useEffect(() => {
     fetchAutomations();
@@ -200,19 +73,19 @@ const Automations = () => {
 
   const fetchAutomations = async () => {
     if (!user) return;
-    
+
     try {
       const { data, error } = await supabase
-        .from('automations')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .from("automations")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-      
-      setAutomations(data?.map(a => mapDbToAutomation(a as unknown as Record<string, unknown>)) || []);
+
+      setAutomations(data?.map((a) => mapDbToAutomation(a as unknown as Record<string, unknown>)) || []);
     } catch (error) {
-      console.error('Error fetching automations:', error);
+      console.error("Error fetching automations:", error);
       toast({
         title: "Error loading automations",
         variant: "destructive",
@@ -222,39 +95,40 @@ const Automations = () => {
     }
   };
 
-  const handleCreate = async () => {
-    if (!formData.name || !formData.trigger || !formData.action) {
-      toast({
-        title: "Missing fields",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (formData.action === "webhook" && !formData.webhook_url) {
-      toast({
-        title: "Webhook URL required",
-        description: "Please enter a webhook URL for this action",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleCreateAutomation = async (data: {
+    name: string;
+    description: string;
+    steps: FlowNode[];
+  }) => {
     if (!user) return;
+
+    const triggerStep = data.steps.find((s) => s.type === "trigger");
+    const actionStep = data.steps.find((s) => s.type === "action");
+
+    if (!triggerStep || !actionStep) {
+      toast({
+        title: "Invalid flow",
+        description: "Flow must have at least a trigger and an action",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const campaignTriggers = ["email_opened", "link_clicked", "not_opened", "new_subscriber"];
+    const automationType = campaignTriggers.includes(triggerStep.nodeType) ? "campaign" : "followup";
 
     setIsSaving(true);
     try {
-      const { data, error } = await supabase
-        .from('automations')
+      const { data: newAutomation, error } = await supabase
+        .from("automations")
         .insert({
           user_id: user.id,
-          name: formData.name,
-          type: formData.type,
-          trigger: formData.trigger,
-          action: formData.action,
-          delay: formData.delay || null,
-          webhook_url: formData.action === "webhook" ? formData.webhook_url : null,
+          name: data.name,
+          description: data.description || null,
+          type: automationType,
+          trigger: triggerStep.nodeType,
+          action: actionStep.nodeType,
+          flow_config: JSON.parse(JSON.stringify(data.steps)),
           enabled: true,
         })
         .select()
@@ -262,12 +136,15 @@ const Automations = () => {
 
       if (error) throw error;
 
-      setAutomations([mapDbToAutomation(data as unknown as Record<string, unknown>), ...automations]);
-      setIsDialogOpen(false);
-      setFormData({ name: "", type: "campaign", trigger: "", action: "", delay: "", webhook_url: "" });
-      toast({ title: "Automation created successfully" });
+      setAutomations([mapDbToAutomation(newAutomation as unknown as Record<string, unknown>), ...automations]);
+      setIsBuilderOpen(false);
+      setEditingAutomation(null);
+      toast({
+        title: "Automation created",
+        description: "Your automation is now active",
+      });
     } catch (error) {
-      console.error('Error creating automation:', error);
+      console.error("Error creating automation:", error);
       toast({
         title: "Error creating automation",
         variant: "destructive",
@@ -277,99 +154,20 @@ const Automations = () => {
     }
   };
 
-   const handleMultiStepCreate = async (data: {
-     name: string;
-     description: string;
-     steps: FlowStep[];
-   }) => {
-     if (!user) return;
- 
-     // Extract trigger and first action from steps for backwards compatibility
-     const triggerStep = data.steps.find((s) => s.type === "trigger");
-     const actionStep = data.steps.find((s) => s.type === "action");
-     const delayStep = data.steps.find((s) => s.type === "delay");
- 
-     if (!triggerStep || !actionStep) {
-       toast({
-         title: "Invalid flow",
-         description: "Flow must have at least one trigger and one action",
-         variant: "destructive",
-       });
-       return;
-     }
- 
-     // Determine type based on trigger
-     const campaignTriggers = ["email_opened", "link_clicked", "not_opened", "new_subscriber"];
-     const automationType = campaignTriggers.includes(triggerStep.nodeType) ? "campaign" : "followup";
- 
-     // Map delay step to delay string
-     const delayMap: Record<string, string> = {
-       wait_1h: "1h",
-       wait_1d: "1d",
-       wait_3d: "3d",
-       wait_1w: "1w",
-       wait_custom: "1d",
-     };
- 
-     setIsSaving(true);
-     try {
-       const { data: newAutomation, error } = await supabase
-          .from("automations")
-          .insert({
-            user_id: user.id,
-            name: data.name,
-            description: data.description || null,
-            type: automationType,
-            trigger: triggerStep.nodeType,
-            action: actionStep.nodeType,
-            delay: delayStep ? delayMap[delayStep.nodeType] || null : null,
-            flow_config: JSON.parse(JSON.stringify(data.steps)),
-            enabled: true,
-          })
-          .select()
-          .single();
- 
-        if (error) throw error;
-
-        setAutomations([
-          mapDbToAutomation(newAutomation as unknown as Record<string, unknown>),
-          ...automations,
-        ]);
-       setIsMultiStepDialogOpen(false);
-       toast({ title: "Multi-step automation created successfully" });
-     } catch (error) {
-       console.error("Error creating automation:", error);
-       toast({
-         title: "Error creating automation",
-         variant: "destructive",
-       });
-     } finally {
-       setIsSaving(false);
-     }
-    };
- 
-  const handleEditAutomation = (id: string) => {
-    const automation = automations.find((a) => a.id === id);
-    if (!automation) return;
-    setEditingAutomation(automation);
-    setIsMultiStepDialogOpen(true);
-  };
-
-  const handleMultiStepUpdate = async (data: {
+  const handleUpdateAutomation = async (data: {
     name: string;
     description: string;
-    steps: FlowStep[];
+    steps: FlowNode[];
   }) => {
     if (!user || !editingAutomation) return;
 
     const triggerStep = data.steps.find((s) => s.type === "trigger");
     const actionStep = data.steps.find((s) => s.type === "action");
-    const delayStep = data.steps.find((s) => s.type === "delay");
 
     if (!triggerStep || !actionStep) {
       toast({
         title: "Invalid flow",
-        description: "Flow must have at least one trigger and one action",
+        description: "Flow must have at least a trigger and an action",
         variant: "destructive",
       });
       return;
@@ -377,14 +175,6 @@ const Automations = () => {
 
     const campaignTriggers = ["email_opened", "link_clicked", "not_opened", "new_subscriber"];
     const automationType = campaignTriggers.includes(triggerStep.nodeType) ? "campaign" : "followup";
-
-    const delayMap: Record<string, string> = {
-      wait_1h: "1h",
-      wait_1d: "1d",
-      wait_3d: "3d",
-      wait_1w: "1w",
-      wait_custom: "1d",
-    };
 
     setIsSaving(true);
     try {
@@ -396,7 +186,6 @@ const Automations = () => {
           type: automationType,
           trigger: triggerStep.nodeType,
           action: actionStep.nodeType,
-          delay: delayStep ? delayMap[delayStep.nodeType] || null : null,
           flow_config: JSON.parse(JSON.stringify(data.steps)),
         })
         .eq("id", editingAutomation.id)
@@ -407,14 +196,14 @@ const Automations = () => {
 
       setAutomations(
         automations.map((a) =>
-          a.id === editingAutomation.id
-            ? mapDbToAutomation(updated as unknown as Record<string, unknown>)
-            : a
+          a.id === editingAutomation.id ? mapDbToAutomation(updated as unknown as Record<string, unknown>) : a
         )
       );
-      setIsMultiStepDialogOpen(false);
+      setIsBuilderOpen(false);
       setEditingAutomation(null);
-      toast({ title: "Automation updated successfully" });
+      toast({
+        title: "Automation updated",
+      });
     } catch (error) {
       console.error("Error updating automation:", error);
       toast({
@@ -429,19 +218,20 @@ const Automations = () => {
   const toggleAutomation = async (id: string, currentEnabled: boolean) => {
     try {
       const { error } = await supabase
-        .from('automations')
+        .from("automations")
         .update({ enabled: !currentEnabled })
-        .eq('id', id);
+        .eq("id", id);
 
       if (error) throw error;
 
       setAutomations(
-        automations.map((a) =>
-          a.id === id ? { ...a, enabled: !currentEnabled } : a
-        )
+        automations.map((a) => (a.id === id ? { ...a, enabled: !currentEnabled } : a))
       );
+      toast({
+        title: currentEnabled ? "Automation paused" : "Automation activated",
+      });
     } catch (error) {
-      console.error('Error toggling automation:', error);
+      console.error("Error toggling automation:", error);
       toast({
         title: "Error updating automation",
         variant: "destructive",
@@ -451,17 +241,16 @@ const Automations = () => {
 
   const deleteAutomation = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('automations')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from("automations").delete().eq("id", id);
 
       if (error) throw error;
 
       setAutomations(automations.filter((a) => a.id !== id));
-      toast({ title: "Automation deleted" });
+      toast({
+        title: "Automation deleted",
+      });
     } catch (error) {
-      console.error('Error deleting automation:', error);
+      console.error("Error deleting automation:", error);
       toast({
         title: "Error deleting automation",
         variant: "destructive",
@@ -469,14 +258,25 @@ const Automations = () => {
     }
   };
 
-  const copyWebhookUrl = () => {
-    navigator.clipboard.writeText(webhookUrl);
-    toast({ title: "Webhook URL copied to clipboard" });
+  const handleSelectTemplate = (template: typeof automationTemplates[0]) => {
+    toast({
+      title: "Template loaded",
+      description: `Ready to customize "${template.name}"`,
+    });
+    setIsBuilderOpen(true);
   };
 
-  const filteredAutomations = automations.filter((a) => a.type === activeTab);
-  const campaignCount = automations.filter((a) => a.type === "campaign").length;
-  const followupCount = automations.filter((a) => a.type === "followup").length;
+  const filteredAutomations = () => {
+    const all = automations;
+    switch (activeTab) {
+      case "campaign":
+        return all.filter((a) => a.type === "campaign");
+      case "followup":
+        return all.filter((a) => a.type === "followup");
+      default:
+        return all;
+    }
+  };
 
   if (isLoading) {
     return (
@@ -488,219 +288,168 @@ const Automations = () => {
     );
   }
 
+  const automated = filteredAutomations();
+  const stats = {
+    total: automations.length,
+    active: automations.filter((a) => a.enabled).length,
+    campaigns: automations.filter((a) => a.type === "campaign").length,
+    followups: automations.filter((a) => a.type === "followup").length,
+  };
+
   return (
     <AppLayout
       title="Automations"
-      description="Build visual automation flows for your campaigns"
+      description="Create and manage email automation workflows"
       action={
-        <div className="flex gap-2">
-          <Dialog open={isMultiStepDialogOpen} onOpenChange={(open) => {
-            setIsMultiStepDialogOpen(open);
-            if (!open) setEditingAutomation(null);
-          }}>
-            <DialogTrigger asChild>
-              <Button variant="hero" className="gap-2" onClick={() => setEditingAutomation(null)}>
-                <Layers className="w-4 h-4" />
-                Multi-Step Flow
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-4xl max-h-[90vh] p-0 overflow-hidden">
-              <DialogHeader className="sr-only">
-                <DialogTitle>{editingAutomation ? "Edit Automation" : "Create Multi-Step Automation"}</DialogTitle>
-              </DialogHeader>
-              <MultiStepFlowBuilder
-                onSubmit={editingAutomation ? handleMultiStepUpdate : handleMultiStepCreate}
-                onCancel={() => {
-                  setIsMultiStepDialogOpen(false);
-                  setEditingAutomation(null);
-                }}
-                isSaving={isSaving}
-                initialData={editingAutomation ? automationToFlowData(editingAutomation) : undefined}
-              />
-            </DialogContent>
-          </Dialog>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Plus className="w-4 h-4" />
-                Quick Create
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Workflow className="w-5 h-5 text-primary" />
-                  Create Automation Flow
-                </DialogTitle>
-              </DialogHeader>
-              <FlowBuilder
-                formData={formData}
-                onChange={(data) => setFormData({ ...formData, ...data })}
-                onSubmit={handleCreate}
-                onCancel={() => setIsDialogOpen(false)}
-                isSaving={isSaving}
-              />
-            </DialogContent>
-          </Dialog>
-        </div>
+        <Dialog open={isBuilderOpen} onOpenChange={(open) => {
+          setIsBuilderOpen(open);
+          if (!open) setEditingAutomation(null);
+        }}>
+          <DialogTrigger asChild>
+            <Button className="gap-2" onClick={() => setEditingAutomation(null)}>
+              <Plus className="w-4 h-4" />
+              Create Automation
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+            <DialogHeader className="sr-only">
+              <DialogTitle>{editingAutomation ? "Edit Automation" : "Create Automation"}</DialogTitle>
+            </DialogHeader>
+            <ModernFlowEditor
+              onSubmit={editingAutomation ? handleUpdateAutomation : handleCreateAutomation}
+              onCancel={() => {
+                setIsBuilderOpen(false);
+                setEditingAutomation(null);
+              }}
+              isSaving={isSaving}
+            />
+          </DialogContent>
+        </Dialog>
       }
     >
-      {/* Quick Actions Grid */}
-      <div className="grid sm:grid-cols-3 gap-4 mb-6">
-        {/* Webhook URL Card */}
-        <Card className="glass border-primary/20">
-          <CardContent className="py-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <ExternalLink className="w-5 h-5 text-primary" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-sm">Webhook URL</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  For incoming events
-                </p>
-              </div>
-              <Button size="sm" variant="outline" onClick={copyWebhookUrl}>
-                <Copy className="w-4 h-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Scheduled Automations Card */}
-        <Card className="glass border-secondary/20">
-          <CardContent className="py-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-secondary/20 flex items-center justify-center shrink-0">
-                <Clock className="w-5 h-5 text-secondary-foreground" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-sm">Scheduled</p>
-                <p className="text-xs text-muted-foreground">
-                  Time-based triggers
-                </p>
-              </div>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={processScheduledAutomations}
-                disabled={isProcessing}
-              >
-                {isProcessing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Re-engagement Card */}
-        <Card className="glass border-amber-500/20">
-          <CardContent className="py-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-                <UserX className="w-5 h-5 text-amber-500" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-sm">Re-engage</p>
-                <p className="text-xs text-muted-foreground">
-                  Inactive subscribers
-                </p>
-              </div>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={processReengagement}
-                disabled={isReengaging}
-              >
-                {isReengaging ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tabs for Campaign vs Follow-up */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "campaign" | "followup")} className="mb-6">
-        <TabsList className="bg-secondary/50">
-          <TabsTrigger value="campaign" className="gap-2">
-            <Send className="w-4 h-4" />
-            Campaign
-            {campaignCount > 0 && (
-              <Badge variant="secondary" className="ml-1 text-xs px-1.5">
-                {campaignCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="followup" className="gap-2">
-            <Clock className="w-4 h-4" />
-            Follow-up
-            {followupCount > 0 && (
-              <Badge variant="secondary" className="ml-1 text-xs px-1.5">
-                {followupCount}
-              </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
-      {filteredAutomations.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass rounded-2xl p-12 text-center"
-        >
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center mx-auto mb-6">
-            <Workflow className="w-10 h-10 text-primary" />
-          </div>
-          <h2 className="font-display text-2xl font-semibold mb-2">
-            Build Your First {activeTab === "campaign" ? "Campaign" : "Follow-up"} Flow
-          </h2>
-          <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-            {activeTab === "campaign"
-              ? "Create visual automation flows that trigger based on email events like opens, clicks, and bounces."
-              : "Set up automated follow-up sequences for contacts who haven't responded or engaged."}
-          </p>
-          <Button 
-            variant="hero" 
-            size="lg"
-            onClick={() => {
-              setFormData({ ...formData, type: activeTab });
-              setIsDialogOpen(true);
-            }}
-            className="gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Create Automation Flow
-          </Button>
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={() => setIsMultiStepDialogOpen(true)}
-            className="gap-2"
-          >
-            <Layers className="w-5 h-5" />
-            Multi-Step Builder
-          </Button>
-        </motion.div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filteredAutomations.map((automation) => (
-            <AutomationFlowCard
-              key={automation.id}
-              automation={automation}
-              onToggle={toggleAutomation}
-              onDelete={deleteAutomation}
-              onEdit={handleEditAutomation}
-            />
+      <div className="space-y-6">
+        {/* Stats Overview */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: "Total", value: stats.total, icon: Zap, color: "text-primary" },
+            { label: "Active", value: stats.active, icon: Zap, color: "text-emerald-500" },
+            { label: "Campaigns", value: stats.campaigns, icon: Zap, color: "text-blue-500" },
+            { label: "Follow-ups", value: stats.followups, icon: Zap, color: "text-amber-500" },
+          ].map((stat, idx) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.1 }}
+            >
+              <Card className="glass">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground">{stat.label}</p>
+                      <p className="text-2xl font-bold mt-1">{stat.value}</p>
+                    </div>
+                    <div className={`p-2 rounded-lg bg-muted ${stat.color}`}>
+                      <stat.icon className="w-4 h-4" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
           ))}
         </div>
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="all">All ({automations.length})</TabsTrigger>
+            <TabsTrigger value="campaign">Campaigns ({stats.campaigns})</TabsTrigger>
+            <TabsTrigger value="followup">Follow-ups ({stats.followups})</TabsTrigger>
+            <TabsTrigger value="templates">Templates</TabsTrigger>
+          </TabsList>
+
+          {/* Automations List */}
+          <div className="space-y-4 mt-6">
+            {activeTab === "templates" ? (
+              <AutomationTemplateGrid onSelectTemplate={handleSelectTemplate} />
+            ) : (
+              <>
+                {automated.length === 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    <Card className="glass border-dashed">
+                      <CardContent className="p-8 text-center">
+                        <AlertCircle className="w-8 h-8 mx-auto text-muted-foreground mb-3 opacity-50" />
+                        <p className="text-muted-foreground">No automations yet</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Create your first automation or choose from templates
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ) : (
+                  <div className="grid gap-4">
+                    <AnimatePresence>
+                      {automated.map((automation) => (
+                        <ImprovedAutomationCard
+                          key={automation.id}
+                          automation={automation}
+                          onToggle={toggleAutomation}
+                          onDelete={deleteAutomation}
+                          onEdit={(id) => {
+                            const auto = automations.find((a) => a.id === id);
+                            if (auto) {
+                              setEditingAutomation(auto);
+                              setIsBuilderOpen(true);
+                            }
+                          }}
+                          onAnalytics={(id) => {
+                            const auto = automations.find((a) => a.id === id);
+                            if (auto) setSelectedAnalytics(auto);
+                          }}
+                        />
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </Tabs>
+      </div>
+
+      {/* Analytics Modal */}
+      {selectedAnalytics && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => setSelectedAnalytics(null)}
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto"
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-background rounded-lg p-6 shadow-lg max-w-4xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto"
+          >
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold">{selectedAnalytics.name}</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedAnalytics(null)}
+                >
+                  Close
+                </Button>
+              </div>
+              <AutomationAnalytics automation={selectedAnalytics} />
+            </div>
+          </motion.div>
+        </motion.div>
       )}
     </AppLayout>
   );
