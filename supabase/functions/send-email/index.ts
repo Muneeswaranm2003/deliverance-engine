@@ -294,6 +294,11 @@ interface SmtpServer {
 }
 
 async function sendViaSmtp(srv: SmtpServer, fromOverride: string | null, to: string[], subject: string, html: string, text?: string): Promise<SendResult> {
+  // Validate host is a real domain or IP, not a username/identifier
+  const looksLikeHost = /^[a-zA-Z0-9.-]+$/.test(srv.host) && srv.host.includes(".") && !srv.host.includes("_");
+  if (!looksLikeHost) {
+    return { success: false, error: `Invalid SMTP host "${srv.host}". Use a hostname like email-smtp.us-east-1.amazonaws.com (not your SMTP username).` };
+  }
   const useTls = srv.encryption === "ssl" || srv.encryption === "tls";
   const client = new SMTPClient({
     connection: {
@@ -314,7 +319,11 @@ async function sendViaSmtp(srv: SmtpServer, fromOverride: string | null, to: str
     });
     return { success: true, messageId: `smtp-${srv.id}-${Date.now()}` };
   } catch (err: any) {
-    return { success: false, error: err?.message || String(err) };
+    let msg = err?.message || String(err);
+    if (msg.includes("lookup address")) {
+      msg = `Cannot resolve SMTP host "${srv.host}". Check your Host field — it should be a domain (e.g. email-smtp.us-east-1.amazonaws.com), not your SMTP username.`;
+    }
+    return { success: false, error: msg };
   } finally {
     try { await client.close(); } catch { /* ignore */ }
   }
