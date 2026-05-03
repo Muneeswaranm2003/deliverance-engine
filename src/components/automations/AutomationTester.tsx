@@ -27,7 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export interface FlowStep {
-  type: "trigger" | "delay" | "action";
+  type: "trigger" | "delay" | "action" | "condition";
   nodeType: string;
   label: string;
 }
