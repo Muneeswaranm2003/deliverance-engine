@@ -34,7 +34,7 @@ export interface AIFlowSuggestion {
 
 interface AutomationAISuggestionsProps {
   currentSteps: Array<{
-    type: "trigger" | "delay" | "action";
+    type: "trigger" | "delay" | "action" | "condition";
     nodeType: string;
   }>;
   onApplySuggestion: (suggestion: AIFlowSuggestion) => void;

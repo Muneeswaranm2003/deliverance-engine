@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +17,7 @@ interface EmailRequest {
   reply_to?: string;
   campaign_id?: string;
   recipient_id?: string;
+  force_smtp_id?: string;
 }
 
 interface ApiKey {
@@ -278,6 +280,46 @@ async function sendViaCustom(apiKey: string, endpointUrl: string, from: string, 
   return { success: true, messageId: data.id || data.messageId || data.message_id };
 }
 
+// ── SMTP send ────────────────────────────────────────────────────────
+
+interface SmtpServer {
+  id: string;
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  encryption: "none" | "tls" | "ssl" | "starttls";
+  from_email: string;
+  from_name: string;
+}
+
+async function sendViaSmtp(srv: SmtpServer, fromOverride: string | null, to: string[], subject: string, html: string, text?: string): Promise<SendResult> {
+  const useTls = srv.encryption === "ssl" || srv.encryption === "tls";
+  const client = new SMTPClient({
+    connection: {
+      hostname: srv.host,
+      port: srv.port,
+      tls: useTls,
+      auth: { username: srv.username, password: srv.password },
+    },
+  });
+  try {
+    const fromAddr = fromOverride || (srv.from_name ? `${srv.from_name} <${srv.from_email}>` : srv.from_email);
+    await client.send({
+      from: fromAddr,
+      to,
+      subject,
+      content: text || subject,
+      html,
+    });
+    return { success: true, messageId: `smtp-${srv.id}-${Date.now()}` };
+  } catch (err: any) {
+    return { success: false, error: err?.message || String(err) };
+  } finally {
+    try { await client.close(); } catch { /* ignore */ }
+  }
+}
+
 // ── Route to provider ────────────────────────────────────────────────
 
 async function sendWithProvider(key: ApiKey, from: string, to: string[], subject: string, html: string, text?: string): Promise<SendResult> {
@@ -359,6 +401,37 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response(
         JSON.stringify({ success: false, error: "All recipients are suppressed" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ── If a specific SMTP server was requested (e.g. Test button), use it directly ──
+    if (emailRequest.force_smtp_id) {
+      const { data: smtp, error: smtpErr } = await supabase
+        .from("smtp_servers")
+        .select("id, host, port, username, password, encryption, from_email, from_name")
+        .eq("id", emailRequest.force_smtp_id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (smtpErr || !smtp) {
+        return new Response(
+          JSON.stringify({ success: false, error: "SMTP server not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const fromOverride = emailRequest.from_email
+        ? `${emailRequest.from_name || ""} <${emailRequest.from_email}>`.trim()
+        : null;
+      const result = await sendViaSmtp(smtp as SmtpServer, fromOverride, validRecipients, emailRequest.subject, emailRequest.html, emailRequest.text);
+      await supabase
+        .from("smtp_servers")
+        .update({
+          last_used_at: new Date().toISOString(),
+          last_error: result.success ? null : result.error,
+        })
+        .eq("id", smtp.id);
+      return new Response(
+        JSON.stringify(result.success ? { success: true, messageId: result.messageId } : { success: false, error: result.error }),
+        { status: result.success ? 200 : 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
