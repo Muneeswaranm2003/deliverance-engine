@@ -1,7 +1,9 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SmtpServersManager } from "@/components/deliverability/SmtpServersManager";
-import { Server, ShieldCheck, Globe, GitBranch } from "lucide-react";
+import { ApiKeysManager } from "@/components/settings/ApiKeysManager";
+import { IpPoolsManager } from "@/components/settings/IpPoolsManager";
+import { Server, ShieldCheck, Globe, GitBranch, Key, Network } from "lucide-react";
 import { motion } from "framer-motion";
 
 const Deliverability = () => {
@@ -16,9 +18,15 @@ const Deliverability = () => {
         transition={{ duration: 0.3 }}
       >
         <Tabs defaultValue="smtp" className="space-y-6">
-          <TabsList className="grid w-full max-w-2xl grid-cols-4">
+          <TabsList className="grid w-full max-w-4xl grid-cols-6">
             <TabsTrigger value="smtp" className="gap-2">
               <Server className="w-4 h-4" /> SMTP
+            </TabsTrigger>
+            <TabsTrigger value="api" className="gap-2">
+              <Key className="w-4 h-4" /> API Keys
+            </TabsTrigger>
+            <TabsTrigger value="ips" className="gap-2">
+              <Network className="w-4 h-4" /> IP Pools
             </TabsTrigger>
             <TabsTrigger value="dns" className="gap-2" disabled>
               <ShieldCheck className="w-4 h-4" /> DNS Auth
@@ -34,6 +42,18 @@ const Deliverability = () => {
           <TabsContent value="smtp" className="space-y-4">
             <div className="glass rounded-xl p-6">
               <SmtpServersManager />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="api" className="space-y-4">
+            <div className="glass rounded-xl p-6">
+              <ApiKeysManager />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="ips" className="space-y-4">
+            <div className="glass rounded-xl p-6">
+              <IpPoolsManager />
             </div>
           </TabsContent>
 
