@@ -44,9 +44,11 @@ const Deliverability = () => {
             <TabsTrigger value="ips" className="gap-2">
               <Network className="w-4 h-4" /> IP Pools
             </TabsTrigger>
-            <TabsTrigger value="roles" className="gap-2">
-              <Users className="w-4 h-4" /> Roles
-            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="roles" className="gap-2">
+                <Users className="w-4 h-4" /> Roles
+              </TabsTrigger>
+            )}
             <TabsTrigger value="dns" className="gap-2" disabled>
               <ShieldCheck className="w-4 h-4" /> DNS Auth
             </TabsTrigger>
