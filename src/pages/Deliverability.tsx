@@ -3,10 +3,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SmtpServersManager } from "@/components/deliverability/SmtpServersManager";
 import { ApiKeysManager } from "@/components/settings/ApiKeysManager";
 import { IpPoolsManager } from "@/components/settings/IpPoolsManager";
-import { Server, ShieldCheck, Globe, GitBranch, Key, Network } from "lucide-react";
+import { Server, ShieldCheck, Globe, GitBranch, Key, Network, Lock } from "lucide-react";
 import { motion } from "framer-motion";
+import { useUserRoles } from "@/hooks/useUserRole";
+import { Badge } from "@/components/ui/badge";
 
 const Deliverability = () => {
+  const { canManageDeliverability, isLoading, roles } = useUserRoles();
+
+  const RestrictedView = ({ feature }: { feature: string }) => (
+    <div className="glass rounded-xl p-10 text-center space-y-3">
+      <Lock className="w-8 h-8 mx-auto text-muted-foreground" />
+      <p className="font-medium">Restricted access</p>
+      <p className="text-sm text-muted-foreground">
+        Only admins and managers can manage {feature}. Your current role:{" "}
+        <Badge variant="secondary">{roles[0] ?? "user"}</Badge>
+      </p>
+    </div>
+  );
+
   return (
     <AppLayout
       title="Deliverability"
@@ -47,13 +62,21 @@ const Deliverability = () => {
 
           <TabsContent value="api" className="space-y-4">
             <div className="glass rounded-xl p-6">
-              <ApiKeysManager />
+              {isLoading ? null : canManageDeliverability ? (
+                <ApiKeysManager />
+              ) : (
+                <RestrictedView feature="API keys" />
+              )}
             </div>
           </TabsContent>
 
           <TabsContent value="ips" className="space-y-4">
             <div className="glass rounded-xl p-6">
-              <IpPoolsManager />
+              {isLoading ? null : canManageDeliverability ? (
+                <IpPoolsManager />
+              ) : (
+                <RestrictedView feature="IP pools" />
+              )}
             </div>
           </TabsContent>
 
