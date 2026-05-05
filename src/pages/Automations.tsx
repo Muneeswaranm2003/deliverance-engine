@@ -284,15 +284,41 @@ const Automations = () => {
   };
 
   const filteredAutomations = () => {
-    const all = automations;
-    switch (activeTab) {
-      case "campaign":
-        return all.filter((a) => a.type === "campaign");
-      case "followup":
-        return all.filter((a) => a.type === "followup");
-      default:
-        return all;
+    let all = automations;
+    if (activeTab === "campaign") all = all.filter((a) => a.type === "campaign");
+    if (activeTab === "followup") all = all.filter((a) => a.type === "followup");
+
+    if (statusFilter === "active") all = all.filter((a) => a.enabled);
+    if (statusFilter === "paused") all = all.filter((a) => !a.enabled);
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      all = all.filter(
+        (a) =>
+          a.name.toLowerCase().includes(q) ||
+          (a.description?.toLowerCase().includes(q) ?? false) ||
+          a.trigger.toLowerCase().includes(q) ||
+          a.action.toLowerCase().includes(q)
+      );
     }
+
+    const sorted = [...all];
+    sorted.sort((a, b) => {
+      switch (sortBy) {
+        case "name":
+          return a.name.localeCompare(b.name);
+        case "triggered":
+          return b.triggered_count - a.triggered_count;
+        case "completion": {
+          const ar = a.triggered_count ? a.completed_count / a.triggered_count : 0;
+          const br = b.triggered_count ? b.completed_count / b.triggered_count : 0;
+          return br - ar;
+        }
+        default:
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
+    return sorted;
   };
 
   if (isLoading) {
