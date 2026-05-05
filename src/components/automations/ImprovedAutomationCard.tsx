@@ -250,32 +250,13 @@ export const ImprovedAutomationCard = ({
 
         {/* Flow Preview */}
         <CardContent className="py-4 space-y-4">
-          <div className="flex items-center justify-between gap-3 flex-wrap text-sm">
-            {/* Trigger */}
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/5 border border-blue-200 dark:border-blue-900">
-              <TriggerIcon className={cn("w-4 h-4", trigger.color)} />
-              <span className="text-xs font-medium">{trigger.label}</span>
+          <div className="rounded-lg border border-border/50 bg-secondary/30 p-2.5">
+            <div className="flex items-center justify-between mb-1.5 px-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Flow · {flowSteps.length} {flowSteps.length === 1 ? "step" : "steps"}
+              </span>
             </div>
-
-            {/* Delay (if present) */}
-            {automation.delay && (
-              <>
-                <div className="text-muted-foreground">→</div>
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/5 border border-amber-200 dark:border-amber-900">
-                  <Clock className="w-4 h-4 text-amber-500" />
-                  <span className="text-xs font-medium">{delayLabels[automation.delay] || automation.delay}</span>
-                </div>
-              </>
-            )}
-
-            {/* Action */}
-            <>
-              <div className="text-muted-foreground">→</div>
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/5 border border-emerald-200 dark:border-emerald-900">
-                <ActionIcon className={cn("w-4 h-4", action.color)} />
-                <span className="text-xs font-medium">{action.label}</span>
-              </div>
-            </>
+            <FlowPreview steps={flowSteps} />
           </div>
 
           {/* Stats */}
