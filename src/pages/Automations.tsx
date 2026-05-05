@@ -80,6 +80,9 @@ const Automations = () => {
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [editingAutomation, setEditingAutomation] = useState<Automation | null>(null);
   const [selectedAnalytics, setSelectedAnalytics] = useState<Automation | null>(null);
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"recent" | "name" | "triggered" | "completion">("recent");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused">("all");
 
   useEffect(() => {
     fetchAutomations();
