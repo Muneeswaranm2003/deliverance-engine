@@ -27,6 +27,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { FlowNode } from "./ModernFlowEditor";
 
 interface ImprovedAutomationCardProps {
   automation: {
@@ -41,6 +42,7 @@ interface ImprovedAutomationCardProps {
     completed_count: number;
     created_at: string;
     description?: string;
+    flow_config?: unknown;
   };
   onToggle: (id: string, enabled: boolean) => void;
   onDelete: (id: string) => void;
@@ -81,6 +83,80 @@ const delayLabels: Record<string, string> = {
   "30d": "30 days",
 };
 
+const stepStyles: Record<FlowNode["type"], { bg: string; border: string; icon: string }> = {
+  trigger: { bg: "bg-blue-500/10", border: "border-blue-500/30", icon: "text-blue-400" },
+  delay: { bg: "bg-amber-500/10", border: "border-amber-500/30", icon: "text-amber-400" },
+  action: { bg: "bg-emerald-500/10", border: "border-emerald-500/30", icon: "text-emerald-400" },
+  condition: { bg: "bg-violet-500/10", border: "border-violet-500/30", icon: "text-violet-400" },
+};
+
+const getStepMeta = (step: FlowNode): { icon: any; label: string } => {
+  if (step.type === "trigger") {
+    const m = triggerMeta[step.nodeType];
+    return { icon: m?.icon ?? Mail, label: m?.label ?? step.nodeType };
+  }
+  if (step.type === "action") {
+    const m = actionMeta[step.nodeType];
+    return { icon: m?.icon ?? Send, label: m?.label ?? step.nodeType };
+  }
+  if (step.type === "delay") {
+    const raw = (step.config?.duration as string) || step.nodeType;
+    return { icon: Clock, label: delayLabels[raw] || raw || "Wait" };
+  }
+  return { icon: GitBranchIcon, label: (step.config?.label as string) || "Condition" };
+};
+
+import { GitBranch as GitBranchIcon } from "lucide-react";
+
+const FlowPreview = ({ steps }: { steps: FlowNode[] }) => {
+  const max = 5;
+  const visible = steps.slice(0, max);
+  const overflow = steps.length - visible.length;
+  return (
+    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none -mx-1 px-1 py-1">
+      {visible.map((step, i) => {
+        const { icon: Icon, label } = getStepMeta(step);
+        const s = stepStyles[step.type];
+        return (
+          <div key={step.id || i} className="flex items-center gap-1.5 shrink-0">
+            <div
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border",
+                s.bg,
+                s.border
+              )}
+              title={label}
+            >
+              <Icon className={cn("w-3.5 h-3.5", s.icon)} />
+              <span className="text-xs font-medium max-w-[110px] truncate">{label}</span>
+            </div>
+            {i < visible.length - 1 && (
+              <span className="text-muted-foreground/60 text-xs">→</span>
+            )}
+          </div>
+        );
+      })}
+      {overflow > 0 && (
+        <>
+          <span className="text-muted-foreground/60 text-xs">→</span>
+          <div className="px-2 py-1 rounded-md border border-border/60 bg-muted/40 text-xs text-muted-foreground shrink-0">
+            +{overflow} more
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+const buildFallbackSteps = (a: ImprovedAutomationCardProps["automation"]): FlowNode[] => {
+  const steps: FlowNode[] = [
+    { id: "t", type: "trigger", nodeType: a.trigger },
+  ];
+  if (a.delay) steps.push({ id: "d", type: "delay", nodeType: a.delay, config: { duration: a.delay } });
+  steps.push({ id: "a", type: "action", nodeType: a.action });
+  return steps;
+};
+
 export const ImprovedAutomationCard = ({
   automation,
   onToggle,
@@ -105,6 +181,10 @@ export const ImprovedAutomationCard = ({
   
   const TriggerIcon = trigger.icon;
   const ActionIcon = action.icon;
+
+  const flowSteps: FlowNode[] = Array.isArray(automation.flow_config)
+    ? (automation.flow_config as FlowNode[])
+    : buildFallbackSteps(automation);
 
   // Calculate completion rate
   const completionRate = automation.triggered_count > 0 
@@ -170,32 +250,13 @@ export const ImprovedAutomationCard = ({
 
         {/* Flow Preview */}
         <CardContent className="py-4 space-y-4">
-          <div className="flex items-center justify-between gap-3 flex-wrap text-sm">
-            {/* Trigger */}
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/5 border border-blue-200 dark:border-blue-900">
-              <TriggerIcon className={cn("w-4 h-4", trigger.color)} />
-              <span className="text-xs font-medium">{trigger.label}</span>
+          <div className="rounded-lg border border-border/50 bg-secondary/30 p-2.5">
+            <div className="flex items-center justify-between mb-1.5 px-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Flow · {flowSteps.length} {flowSteps.length === 1 ? "step" : "steps"}
+              </span>
             </div>
-
-            {/* Delay (if present) */}
-            {automation.delay && (
-              <>
-                <div className="text-muted-foreground">→</div>
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/5 border border-amber-200 dark:border-amber-900">
-                  <Clock className="w-4 h-4 text-amber-500" />
-                  <span className="text-xs font-medium">{delayLabels[automation.delay] || automation.delay}</span>
-                </div>
-              </>
-            )}
-
-            {/* Action */}
-            <>
-              <div className="text-muted-foreground">→</div>
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/5 border border-emerald-200 dark:border-emerald-900">
-                <ActionIcon className={cn("w-4 h-4", action.color)} />
-                <span className="text-xs font-medium">{action.label}</span>
-              </div>
-            </>
+            <FlowPreview steps={flowSteps} />
           </div>
 
           {/* Stats */}
