@@ -2,6 +2,14 @@ import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -20,10 +28,17 @@ import {
   Zap,
   Loader2,
   AlertCircle,
+  Search,
+  Activity,
+  Send,
+  Clock,
+  Sparkles,
+  LayoutTemplate,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
 
 interface Automation {
   id: string;
@@ -66,6 +81,9 @@ const Automations = () => {
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [editingAutomation, setEditingAutomation] = useState<Automation | null>(null);
   const [selectedAnalytics, setSelectedAnalytics] = useState<Automation | null>(null);
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"recent" | "name" | "triggered" | "completion">("recent");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused">("all");
 
   useEffect(() => {
     fetchAutomations();
@@ -267,15 +285,41 @@ const Automations = () => {
   };
 
   const filteredAutomations = () => {
-    const all = automations;
-    switch (activeTab) {
-      case "campaign":
-        return all.filter((a) => a.type === "campaign");
-      case "followup":
-        return all.filter((a) => a.type === "followup");
-      default:
-        return all;
+    let all = automations;
+    if (activeTab === "campaign") all = all.filter((a) => a.type === "campaign");
+    if (activeTab === "followup") all = all.filter((a) => a.type === "followup");
+
+    if (statusFilter === "active") all = all.filter((a) => a.enabled);
+    if (statusFilter === "paused") all = all.filter((a) => !a.enabled);
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      all = all.filter(
+        (a) =>
+          a.name.toLowerCase().includes(q) ||
+          (a.description?.toLowerCase().includes(q) ?? false) ||
+          a.trigger.toLowerCase().includes(q) ||
+          a.action.toLowerCase().includes(q)
+      );
     }
+
+    const sorted = [...all];
+    sorted.sort((a, b) => {
+      switch (sortBy) {
+        case "name":
+          return a.name.localeCompare(b.name);
+        case "triggered":
+          return b.triggered_count - a.triggered_count;
+        case "completion": {
+          const ar = a.triggered_count ? a.completed_count / a.triggered_count : 0;
+          const br = b.triggered_count ? b.completed_count / b.triggered_count : 0;
+          return br - ar;
+        }
+        default:
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
+    return sorted;
   };
 
   if (isLoading) {
@@ -295,6 +339,9 @@ const Automations = () => {
     campaigns: automations.filter((a) => a.type === "campaign").length,
     followups: automations.filter((a) => a.type === "followup").length,
   };
+  const totalTriggered = automations.reduce((sum, a) => sum + (a.triggered_count || 0), 0);
+  const totalCompleted = automations.reduce((sum, a) => sum + (a.completed_count || 0), 0);
+  const overallSuccess = totalTriggered ? Math.round((totalCompleted / totalTriggered) * 100) : 0;
 
   return (
     <AppLayout
@@ -328,28 +375,64 @@ const Automations = () => {
       }
     >
       <div className="space-y-6">
-        {/* Stats Overview */}
+        {/* Hero Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-br from-primary/10 via-background to-background p-6 md:p-8"
+        >
+          <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-primary/20 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-32 -left-20 w-72 h-72 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
+          <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-2 max-w-2xl">
+              <div className="inline-flex items-center gap-2 text-xs font-medium text-primary bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-full">
+                <Sparkles className="w-3 h-3" />
+                Workflow Engine
+              </div>
+              <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight">
+                Automate every touchpoint
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Build branching, time-aware journeys that nurture, recover, and re-engage subscribers automatically.
+              </p>
+            </div>
+            <div className="flex items-center gap-6 md:gap-8 px-1">
+              <div>
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Triggered</p>
+                <p className="text-2xl font-bold tabular-nums">{totalTriggered}</p>
+              </div>
+              <div className="h-10 w-px bg-border/60" />
+              <div>
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Success</p>
+                <p className="text-2xl font-bold tabular-nums text-emerald-400">{overallSuccess}%</p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Stats Tiles */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: "Total", value: stats.total, icon: Zap, color: "text-primary" },
-            { label: "Active", value: stats.active, icon: Zap, color: "text-emerald-500" },
-            { label: "Campaigns", value: stats.campaigns, icon: Zap, color: "text-blue-500" },
-            { label: "Follow-ups", value: stats.followups, icon: Zap, color: "text-amber-500" },
+            { label: "Total Flows", value: stats.total, icon: Zap, accent: "from-primary/20 to-primary/0", iconColor: "text-primary", ring: "ring-primary/20" },
+            { label: "Active", value: stats.active, icon: Activity, accent: "from-emerald-500/20 to-emerald-500/0", iconColor: "text-emerald-400", ring: "ring-emerald-500/20" },
+            { label: "Campaigns", value: stats.campaigns, icon: Send, accent: "from-blue-500/20 to-blue-500/0", iconColor: "text-blue-400", ring: "ring-blue-500/20" },
+            { label: "Follow-ups", value: stats.followups, icon: Clock, accent: "from-amber-500/20 to-amber-500/0", iconColor: "text-amber-400", ring: "ring-amber-500/20" },
           ].map((stat, idx) => (
             <motion.div
               key={stat.label}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.1 }}
+              transition={{ delay: idx * 0.05 }}
             >
-              <Card className="glass">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-muted-foreground">{stat.label}</p>
-                      <p className="text-2xl font-bold mt-1">{stat.value}</p>
+              <Card className={cn("glass relative overflow-hidden group transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_30px_-10px_hsl(var(--primary)/0.3)]")}>
+                <div className={cn("absolute inset-0 bg-gradient-to-br opacity-60 pointer-events-none", stat.accent)} />
+                <CardContent className="p-4 relative">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{stat.label}</p>
+                      <p className="text-3xl font-bold font-display tabular-nums">{stat.value}</p>
                     </div>
-                    <div className={`p-2 rounded-lg bg-muted ${stat.color}`}>
+                    <div className={cn("p-2 rounded-lg bg-background/40 backdrop-blur ring-1", stat.ring, stat.iconColor)}>
                       <stat.icon className="w-4 h-4" />
                     </div>
                   </div>
@@ -359,17 +442,66 @@ const Automations = () => {
           ))}
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="all">All ({automations.length})</TabsTrigger>
-            <TabsTrigger value="campaign">Campaigns ({stats.campaigns})</TabsTrigger>
-            <TabsTrigger value="followup">Follow-ups ({stats.followups})</TabsTrigger>
-            <TabsTrigger value="templates">Templates</TabsTrigger>
-          </TabsList>
+        {/* Tabs + Toolbar */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full lg:w-auto">
+            <TabsList className="bg-card/60 backdrop-blur border border-border/60 h-10 p-1">
+              <TabsTrigger value="all" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+                <Zap className="w-3.5 h-3.5" /> All
+                <span className="text-xs opacity-70">{automations.length}</span>
+              </TabsTrigger>
+              <TabsTrigger value="campaign" className="gap-2 data-[state=active]:bg-blue-500/15 data-[state=active]:text-blue-400">
+                <Send className="w-3.5 h-3.5" /> Campaigns
+                <span className="text-xs opacity-70">{stats.campaigns}</span>
+              </TabsTrigger>
+              <TabsTrigger value="followup" className="gap-2 data-[state=active]:bg-amber-500/15 data-[state=active]:text-amber-400">
+                <Clock className="w-3.5 h-3.5" /> Follow-ups
+                <span className="text-xs opacity-70">{stats.followups}</span>
+              </TabsTrigger>
+              <TabsTrigger value="templates" className="gap-2 data-[state=active]:bg-violet-500/15 data-[state=active]:text-violet-400">
+                <LayoutTemplate className="w-3.5 h-3.5" /> Templates
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-          {/* Automations List */}
-          <div className="space-y-4 mt-6">
+          {activeTab !== "templates" && (
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 lg:flex-none lg:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search automations…"
+                  className="pl-9 h-10 bg-card/60 backdrop-blur border-border/60"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                <SelectTrigger className="h-10 w-[120px] bg-card/60 backdrop-blur border-border/60">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="paused">Paused</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+                <SelectTrigger className="h-10 w-[140px] bg-card/60 backdrop-blur border-border/60">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recent">Most recent</SelectItem>
+                  <SelectItem value="name">Name (A–Z)</SelectItem>
+                  <SelectItem value="triggered">Most triggered</SelectItem>
+                  <SelectItem value="completion">Best success rate</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+
+        {/* Automations List */}
+        <div className="space-y-4">
             {activeTab === "templates" ? (
               <AutomationTemplateGrid onSelectTemplate={handleSelectTemplate} />
             ) : (
@@ -379,13 +511,36 @@ const Automations = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                   >
-                    <Card className="glass border-dashed">
-                      <CardContent className="p-8 text-center">
-                        <AlertCircle className="w-8 h-8 mx-auto text-muted-foreground mb-3 opacity-50" />
-                        <p className="text-muted-foreground">No automations yet</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Create your first automation or choose from templates
+                    <Card className="glass border-dashed border-border/60 relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-violet-500/5 pointer-events-none" />
+                      <CardContent className="p-10 text-center relative">
+                        <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+                          {search || statusFilter !== "all" ? (
+                            <AlertCircle className="w-6 h-6 text-primary" />
+                          ) : (
+                            <Sparkles className="w-6 h-6 text-primary" />
+                          )}
+                        </div>
+                        <h3 className="font-display text-lg font-semibold">
+                          {search || statusFilter !== "all"
+                            ? "No matching automations"
+                            : "Your canvas is empty"}
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
+                          {search || statusFilter !== "all"
+                            ? "Try a different search term or status filter."
+                            : "Build a flow from scratch or start from a proven template."}
                         </p>
+                        {!(search || statusFilter !== "all") && (
+                          <div className="flex items-center justify-center gap-2 mt-5">
+                            <Button variant="hero" className="gap-2" onClick={() => setIsBuilderOpen(true)}>
+                              <Plus className="w-4 h-4" /> Create automation
+                            </Button>
+                            <Button variant="outline" className="gap-2" onClick={() => setActiveTab("templates")}>
+                              <LayoutTemplate className="w-4 h-4" /> Browse templates
+                            </Button>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -416,8 +571,7 @@ const Automations = () => {
                 )}
               </>
             )}
-          </div>
-        </Tabs>
+        </div>
       </div>
 
       {/* Analytics Modal */}
