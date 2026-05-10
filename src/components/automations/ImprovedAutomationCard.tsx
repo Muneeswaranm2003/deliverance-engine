@@ -25,6 +25,7 @@ import {
   Eye,
   Play,
   BarChart3,
+  Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FlowNode } from "./ModernFlowEditor";
@@ -49,6 +50,7 @@ interface ImprovedAutomationCardProps {
   onEdit: (id: string) => void;
   onAnalytics?: (id: string) => void;
   onTest?: (id: string) => void;
+  onDuplicate?: (id: string) => void;
 }
 
 const triggerMeta: Record<string, { icon: any; label: string; color: string }> = {
@@ -164,6 +166,7 @@ export const ImprovedAutomationCard = ({
   onEdit,
   onAnalytics,
   onTest,
+  onDuplicate,
 }: ImprovedAutomationCardProps) => {
   const [expanded, setExpanded] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -275,6 +278,61 @@ export const ImprovedAutomationCard = ({
             </div>
           </div>
 
+          {/* Quick actions (always visible) */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs h-8"
+              onClick={() => onEdit(automation.id)}
+            >
+              <Pencil className="w-3 h-3" />
+              Edit
+            </Button>
+            {onTest && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs h-8"
+                onClick={() => onTest(automation.id)}
+              >
+                <Play className="w-3 h-3" />
+                Test
+              </Button>
+            )}
+            {onAnalytics && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs h-8"
+                onClick={() => onAnalytics(automation.id)}
+              >
+                <BarChart3 className="w-3 h-3" />
+                Analytics
+              </Button>
+            )}
+            {onDuplicate && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs h-8"
+                onClick={() => onDuplicate(automation.id)}
+              >
+                <Copy className="w-3 h-3" />
+                Duplicate
+              </Button>
+            )}
+            <div className="flex-1" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-xs h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </div>
+
           {/* Expanded Details */}
           {expanded && (
             <motion.div
@@ -286,49 +344,6 @@ export const ImprovedAutomationCard = ({
               {/* Timeline */}
               <div className="text-xs text-muted-foreground">
                 <p>Created {new Date(automation.created_at).toLocaleDateString()}</p>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-2">
-                {onTest && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2 text-xs h-8"
-                    onClick={() => onTest(automation.id)}
-                  >
-                    <Play className="w-3 h-3" />
-                    Test
-                  </Button>
-                )}
-                {onAnalytics && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2 text-xs h-8"
-                    onClick={() => onAnalytics(automation.id)}
-                  >
-                    <BarChart3 className="w-3 h-3" />
-                    Analytics
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 text-xs h-8 flex-1"
-                  onClick={() => onEdit(automation.id)}
-                >
-                  <Pencil className="w-3 h-3" />
-                  Edit
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 text-xs h-8 text-destructive hover:text-destructive"
-                  onClick={() => setShowDeleteConfirm(true)}
-                >
-                  <Trash2 className="w-3 h-3" />
-                </Button>
               </div>
             </motion.div>
           )}
