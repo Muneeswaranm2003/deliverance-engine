@@ -25,6 +25,7 @@ import {
   Eye,
   Play,
   BarChart3,
+  Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FlowNode } from "./ModernFlowEditor";
