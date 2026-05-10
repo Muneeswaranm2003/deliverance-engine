@@ -96,7 +96,7 @@ const Automations = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await withRetry(() =>
+      const { data, error } = await withRetry(async () =>
         supabase
           .from("automations")
           .select("*")
@@ -288,21 +288,22 @@ const Automations = () => {
     const source = automations.find((a) => a.id === id);
     if (!source) return;
     try {
+      const insertPayload = {
+        user_id: user.id,
+        name: `${source.name} (copy)`,
+        description: source.description ?? null,
+        type: source.type,
+        trigger: source.trigger,
+        action: source.action,
+        delay: source.delay ?? null,
+        flow_config: source.flow_config
+          ? JSON.parse(JSON.stringify(source.flow_config))
+          : null,
+        enabled: false,
+      };
       const { data: created, error } = await supabase
         .from("automations")
-        .insert({
-          user_id: user.id,
-          name: `${source.name} (copy)`,
-          description: source.description ?? null,
-          type: source.type,
-          trigger: source.trigger,
-          action: source.action,
-          delay: source.delay ?? null,
-          flow_config: source.flow_config
-            ? (JSON.parse(JSON.stringify(source.flow_config)) as unknown as Record<string, unknown>)
-            : null,
-          enabled: false,
-        })
+        .insert(insertPayload as never)
         .select()
         .single();
       if (error) throw error;
