@@ -19,7 +19,9 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImprovedAutomationCard } from "@/components/automations/ImprovedAutomationCard";
-import { ModernFlowEditor, FlowNode } from "@/components/automations/ModernFlowEditor";
+import { LangflowEditor } from "@/components/automations/LangflowEditor";
+import type { FlowNode } from "@/components/automations/ModernFlowEditor";
+import { AutomationCardSkeleton } from "@/components/automations/AutomationCardSkeleton";
 import { AutomationTemplateGrid, automationTemplates } from "@/components/automations/AutomationTemplates";
 import { AutomationAnalytics } from "@/components/automations/AutomationAnalytics";
 import { motion, AnimatePresence } from "framer-motion";
@@ -39,6 +41,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { withRetry } from "@/lib/supabaseRetry";
 
 interface Automation {
   id: string;
@@ -93,11 +96,13 @@ const Automations = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from("automations")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+      const { data, error } = await withRetry(() =>
+        supabase
+          .from("automations")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+      );
 
       if (error) throw error;
 
@@ -234,6 +239,11 @@ const Automations = () => {
   };
 
   const toggleAutomation = async (id: string, currentEnabled: boolean) => {
+    // Optimistic update
+    const previous = automations;
+    setAutomations((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, enabled: !currentEnabled } : a))
+    );
     try {
       const { error } = await supabase
         .from("automations")
@@ -241,15 +251,12 @@ const Automations = () => {
         .eq("id", id);
 
       if (error) throw error;
-
-      setAutomations(
-        automations.map((a) => (a.id === id ? { ...a, enabled: !currentEnabled } : a))
-      );
       toast({
         title: currentEnabled ? "Automation paused" : "Automation activated",
       });
     } catch (error) {
       console.error("Error toggling automation:", error);
+      setAutomations(previous); // rollback
       toast({
         title: "Error updating automation",
         variant: "destructive",
@@ -273,6 +280,40 @@ const Automations = () => {
         title: "Error deleting automation",
         variant: "destructive",
       });
+    }
+  };
+
+  const duplicateAutomation = async (id: string) => {
+    if (!user) return;
+    const source = automations.find((a) => a.id === id);
+    if (!source) return;
+    try {
+      const { data: created, error } = await supabase
+        .from("automations")
+        .insert({
+          user_id: user.id,
+          name: `${source.name} (copy)`,
+          description: source.description ?? null,
+          type: source.type,
+          trigger: source.trigger,
+          action: source.action,
+          delay: source.delay ?? null,
+          flow_config: source.flow_config
+            ? (JSON.parse(JSON.stringify(source.flow_config)) as unknown as Record<string, unknown>)
+            : null,
+          enabled: false,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      setAutomations([
+        mapDbToAutomation(created as unknown as Record<string, unknown>),
+        ...automations,
+      ]);
+      toast({ title: "Automation duplicated", description: "Created a paused copy." });
+    } catch (error) {
+      console.error("Error duplicating automation:", error);
+      toast({ title: "Error duplicating automation", variant: "destructive" });
     }
   };
 
@@ -324,9 +365,11 @@ const Automations = () => {
 
   if (isLoading) {
     return (
-      <AppLayout title="Automations" description="Loading...">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <AppLayout title="Automations" description="Loading your workflows…">
+        <div className="grid gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <AutomationCardSkeleton key={i} />
+          ))}
         </div>
       </AppLayout>
     );
@@ -358,17 +401,39 @@ const Automations = () => {
               Create Automation
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+          <DialogContent className="sm:max-w-[min(1280px,95vw)] max-h-[95vh] w-[95vw] p-0 overflow-hidden">
             <DialogHeader className="sr-only">
               <DialogTitle>{editingAutomation ? "Edit Automation" : "Create Automation"}</DialogTitle>
             </DialogHeader>
-            <ModernFlowEditor
+            <LangflowEditor
               onSubmit={editingAutomation ? handleUpdateAutomation : handleCreateAutomation}
               onCancel={() => {
                 setIsBuilderOpen(false);
                 setEditingAutomation(null);
               }}
               isSaving={isSaving}
+              initialData={
+                editingAutomation
+                  ? {
+                      name: editingAutomation.name,
+                      description: editingAutomation.description ?? "",
+                      steps: Array.isArray(editingAutomation.flow_config)
+                        ? (editingAutomation.flow_config as FlowNode[])
+                        : [
+                            { id: "t", type: "trigger", nodeType: editingAutomation.trigger },
+                            ...(editingAutomation.delay
+                              ? [{
+                                  id: "d",
+                                  type: "delay" as const,
+                                  nodeType: editingAutomation.delay,
+                                  config: { duration: editingAutomation.delay },
+                                }]
+                              : []),
+                            { id: "a", type: "action", nodeType: editingAutomation.action },
+                          ],
+                    }
+                  : undefined
+              }
             />
           </DialogContent>
         </Dialog>
@@ -564,6 +629,7 @@ const Automations = () => {
                             const auto = automations.find((a) => a.id === id);
                             if (auto) setSelectedAnalytics(auto);
                           }}
+                          onDuplicate={duplicateAutomation}
                         />
                       ))}
                     </AnimatePresence>
