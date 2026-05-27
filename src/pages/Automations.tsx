@@ -59,6 +59,18 @@ interface Automation {
   description?: string;
 }
 
+const CAMPAIGN_TRIGGERS = new Set([
+  "email_opened",
+  "link_clicked",
+  "not_opened",
+  "new_subscriber",
+]);
+
+const detectAutomationType = (triggerNodeType: string): "campaign" | "followup" =>
+  CAMPAIGN_TRIGGERS.has(triggerNodeType) ? "campaign" : "followup";
+
+const cloneFlow = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+
 const mapDbToAutomation = (a: Record<string, unknown>): Automation => ({
   id: a.id as string,
   name: a.name as string,
@@ -74,6 +86,26 @@ const mapDbToAutomation = (a: Record<string, unknown>): Automation => ({
   flow_config: a.flow_config,
   description: (a.description as string) || undefined,
 });
+
+type AutomationFormPayload = {
+  name: string;
+  description: string;
+  steps: FlowNode[];
+};
+
+const validateFlow = (steps: FlowNode[]) => {
+  const trigger = steps.find((s) => s.type === "trigger");
+  const action = steps.find((s) => s.type === "action");
+  if (!trigger || !action) {
+    toast({
+      title: "Invalid flow",
+      description: "Flow must have at least a trigger and an action",
+      variant: "destructive",
+    });
+    return null;
+  }
+  return { trigger, action };
+};
 
 const Automations = () => {
   const { user } = useAuth();
@@ -118,40 +150,23 @@ const Automations = () => {
     }
   };
 
-  const handleCreateAutomation = async (data: {
-    name: string;
-    description: string;
-    steps: FlowNode[];
-  }) => {
+  const handleCreateAutomation = async (data: AutomationFormPayload) => {
     if (!user) return;
-
-    const triggerStep = data.steps.find((s) => s.type === "trigger");
-    const actionStep = data.steps.find((s) => s.type === "action");
-
-    if (!triggerStep || !actionStep) {
-      toast({
-        title: "Invalid flow",
-        description: "Flow must have at least a trigger and an action",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const campaignTriggers = ["email_opened", "link_clicked", "not_opened", "new_subscriber"];
-    const automationType = campaignTriggers.includes(triggerStep.nodeType) ? "campaign" : "followup";
+    const valid = validateFlow(data.steps);
+    if (!valid) return;
 
     setIsSaving(true);
     try {
-      const { data: newAutomation, error } = await supabase
+      const { data: created, error } = await supabase
         .from("automations")
         .insert({
           user_id: user.id,
           name: data.name,
           description: data.description || null,
-          type: automationType,
-          trigger: triggerStep.nodeType,
-          action: actionStep.nodeType,
-          flow_config: JSON.parse(JSON.stringify(data.steps)),
+          type: detectAutomationType(valid.trigger.nodeType),
+          trigger: valid.trigger.nodeType,
+          action: valid.action.nodeType,
+          flow_config: cloneFlow(data.steps),
           enabled: true,
         })
         .select()
@@ -159,45 +174,25 @@ const Automations = () => {
 
       if (error) throw error;
 
-      setAutomations([mapDbToAutomation(newAutomation as unknown as Record<string, unknown>), ...automations]);
+      setAutomations((prev) => [
+        mapDbToAutomation(created as unknown as Record<string, unknown>),
+        ...prev,
+      ]);
       setIsBuilderOpen(false);
       setEditingAutomation(null);
-      toast({
-        title: "Automation created",
-        description: "Your automation is now active",
-      });
+      toast({ title: "Automation created", description: "Your automation is now active" });
     } catch (error) {
       console.error("Error creating automation:", error);
-      toast({
-        title: "Error creating automation",
-        variant: "destructive",
-      });
+      toast({ title: "Error creating automation", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleUpdateAutomation = async (data: {
-    name: string;
-    description: string;
-    steps: FlowNode[];
-  }) => {
+  const handleUpdateAutomation = async (data: AutomationFormPayload) => {
     if (!user || !editingAutomation) return;
-
-    const triggerStep = data.steps.find((s) => s.type === "trigger");
-    const actionStep = data.steps.find((s) => s.type === "action");
-
-    if (!triggerStep || !actionStep) {
-      toast({
-        title: "Invalid flow",
-        description: "Flow must have at least a trigger and an action",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const campaignTriggers = ["email_opened", "link_clicked", "not_opened", "new_subscriber"];
-    const automationType = campaignTriggers.includes(triggerStep.nodeType) ? "campaign" : "followup";
+    const valid = validateFlow(data.steps);
+    if (!valid) return;
 
     setIsSaving(true);
     try {
@@ -206,10 +201,10 @@ const Automations = () => {
         .update({
           name: data.name,
           description: data.description || null,
-          type: automationType,
-          trigger: triggerStep.nodeType,
-          action: actionStep.nodeType,
-          flow_config: JSON.parse(JSON.stringify(data.steps)),
+          type: detectAutomationType(valid.trigger.nodeType),
+          trigger: valid.trigger.nodeType,
+          action: valid.action.nodeType,
+          flow_config: cloneFlow(data.steps),
         })
         .eq("id", editingAutomation.id)
         .select()
@@ -217,22 +212,19 @@ const Automations = () => {
 
       if (error) throw error;
 
-      setAutomations(
-        automations.map((a) =>
-          a.id === editingAutomation.id ? mapDbToAutomation(updated as unknown as Record<string, unknown>) : a
+      setAutomations((prev) =>
+        prev.map((a) =>
+          a.id === editingAutomation.id
+            ? mapDbToAutomation(updated as unknown as Record<string, unknown>)
+            : a
         )
       );
       setIsBuilderOpen(false);
       setEditingAutomation(null);
-      toast({
-        title: "Automation updated",
-      });
+      toast({ title: "Automation updated" });
     } catch (error) {
       console.error("Error updating automation:", error);
-      toast({
-        title: "Error updating automation",
-        variant: "destructive",
-      });
+      toast({ title: "Error updating automation", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -296,9 +288,7 @@ const Automations = () => {
         trigger: source.trigger,
         action: source.action,
         delay: source.delay ?? null,
-        flow_config: source.flow_config
-          ? JSON.parse(JSON.stringify(source.flow_config))
-          : null,
+        flow_config: source.flow_config ? cloneFlow(source.flow_config) : null,
         enabled: false,
       };
       const { data: created, error } = await supabase
@@ -307,9 +297,9 @@ const Automations = () => {
         .select()
         .single();
       if (error) throw error;
-      setAutomations([
+      setAutomations((prev) => [
         mapDbToAutomation(created as unknown as Record<string, unknown>),
-        ...automations,
+        ...prev,
       ]);
       toast({ title: "Automation duplicated", description: "Created a paused copy." });
     } catch (error) {
