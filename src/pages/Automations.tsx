@@ -69,7 +69,10 @@ const CAMPAIGN_TRIGGERS = new Set([
 const detectAutomationType = (triggerNodeType: string): "campaign" | "followup" =>
   CAMPAIGN_TRIGGERS.has(triggerNodeType) ? "campaign" : "followup";
 
-const cloneFlow = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+// Deep clone for JSON-safe payloads. Returns `any` so it satisfies Supabase's
+// generated `Json` types without forcing callers to cast.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const cloneFlow = (value: unknown): any => JSON.parse(JSON.stringify(value));
 
 const mapDbToAutomation = (a: Record<string, unknown>): Automation => ({
   id: a.id as string,
