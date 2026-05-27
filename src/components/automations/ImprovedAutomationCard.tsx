@@ -3,6 +3,16 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { motion } from "framer-motion";
 import {
   Mail,
@@ -21,30 +31,32 @@ import {
   Users,
   AlertTriangle,
   Pencil,
-  TrendingUp,
-  Eye,
   Play,
   BarChart3,
   Copy,
+  GitBranch as GitBranchIcon,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FlowNode } from "./ModernFlowEditor";
 
+export interface AutomationCardData {
+  id: string;
+  name: string;
+  type: "campaign" | "followup";
+  trigger: string;
+  action: string;
+  delay?: string;
+  enabled: boolean;
+  triggered_count: number;
+  completed_count: number;
+  created_at: string;
+  description?: string;
+  flow_config?: unknown;
+}
+
 interface ImprovedAutomationCardProps {
-  automation: {
-    id: string;
-    name: string;
-    type: "campaign" | "followup";
-    trigger: string;
-    action: string;
-    delay?: string;
-    enabled: boolean;
-    triggered_count: number;
-    completed_count: number;
-    created_at: string;
-    description?: string;
-    flow_config?: unknown;
-  };
+  automation: AutomationCardData;
   onToggle: (id: string, enabled: boolean) => void;
   onDelete: (id: string) => void;
   onEdit: (id: string) => void;
@@ -53,7 +65,9 @@ interface ImprovedAutomationCardProps {
   onDuplicate?: (id: string) => void;
 }
 
-const triggerMeta: Record<string, { icon: any; label: string; color: string }> = {
+type MetaEntry = { icon: LucideIcon; label: string; color: string };
+
+const triggerMeta: Record<string, MetaEntry> = {
   email_opened: { icon: Mail, label: "Email Opened", color: "text-blue-500" },
   link_clicked: { icon: MousePointerClick, label: "Link Clicked", color: "text-blue-500" },
   not_opened: { icon: Clock, label: "Not Opened", color: "text-blue-500" },
@@ -64,7 +78,7 @@ const triggerMeta: Record<string, { icon: any; label: string; color: string }> =
   inactive: { icon: UserX, label: "Inactive", color: "text-orange-500" },
 };
 
-const actionMeta: Record<string, { icon: any; label: string; color: string }> = {
+const actionMeta: Record<string, MetaEntry> = {
   send_email: { icon: Send, label: "Send Email", color: "text-emerald-500" },
   send_reengagement: { icon: Send, label: "Re-engagement", color: "text-emerald-500" },
   add_tag: { icon: Tag, label: "Add Tag", color: "text-emerald-500" },
@@ -92,7 +106,7 @@ const stepStyles: Record<FlowNode["type"], { bg: string; border: string; icon: s
   condition: { bg: "bg-violet-500/10", border: "border-violet-500/30", icon: "text-violet-400" },
 };
 
-const getStepMeta = (step: FlowNode): { icon: any; label: string } => {
+const getStepMeta = (step: FlowNode): { icon: LucideIcon; label: string } => {
   if (step.type === "trigger") {
     const m = triggerMeta[step.nodeType];
     return { icon: m?.icon ?? Mail, label: m?.label ?? step.nodeType };
@@ -107,8 +121,6 @@ const getStepMeta = (step: FlowNode): { icon: any; label: string } => {
   }
   return { icon: GitBranchIcon, label: (step.config?.label as string) || "Condition" };
 };
-
-import { GitBranch as GitBranchIcon } from "lucide-react";
 
 const FlowPreview = ({ steps }: { steps: FlowNode[] }) => {
   const max = 5;
@@ -171,31 +183,15 @@ export const ImprovedAutomationCard = ({
   const [expanded, setExpanded] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const trigger = triggerMeta[automation.trigger] || {
-    icon: Mail,
-    label: automation.trigger,
-    color: "text-muted-foreground",
-  };
-  const action = actionMeta[automation.action] || {
-    icon: Send,
-    label: automation.action,
-    color: "text-muted-foreground",
-  };
-  
-  const TriggerIcon = trigger.icon;
-  const ActionIcon = action.icon;
-
   const flowSteps: FlowNode[] = Array.isArray(automation.flow_config)
     ? (automation.flow_config as FlowNode[])
     : buildFallbackSteps(automation);
 
-  // Calculate completion rate
-  const completionRate = automation.triggered_count > 0 
+  const completionRate = automation.triggered_count > 0
     ? Math.round((automation.completed_count / automation.triggered_count) * 100)
     : 0;
 
-  // Determine status color based on enabled/disabled
-  const statusColor = automation.enabled 
+  const statusColor = automation.enabled
     ? "border-primary/30 bg-primary/5 shadow-[0_0_15px_hsl(var(--primary)/0.1)]"
     : "border-border/50 opacity-75 bg-muted/20";
 
@@ -350,48 +346,25 @@ export const ImprovedAutomationCard = ({
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation */}
-      {showDeleteConfirm && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          onClick={() => setShowDeleteConfirm(false)}
-        >
-          <motion.div
-            initial={{ scale: 0.95 }}
-            animate={{ scale: 1 }}
-            onClick={(e) => e.stopPropagation()}
-            className="bg-background rounded-lg p-6 shadow-lg max-w-sm w-full mx-4 space-y-4"
-          >
-            <div>
-              <h3 className="font-semibold">Delete Automation?</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                This action cannot be undone.
-              </p>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowDeleteConfirm(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  onDelete(automation.id);
-                  setShowDeleteConfirm(false);
-                }}
-              >
-                Delete
-              </Button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete automation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{automation.name}" will be permanently removed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => onDelete(automation.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 };

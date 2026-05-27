@@ -14,9 +14,12 @@ export const NodePalette = ({ onDragStart }: NodePaletteProps) => {
   const [q, setQ] = useState("");
 
   const grouped = useMemo(() => {
-    const filtered = NODE_REGISTRY.filter((n) =>
-      [n.label, n.type, n.description].some((s) => s.toLowerCase().includes(q.toLowerCase()))
-    );
+    const needle = q.trim().toLowerCase();
+    const filtered = needle
+      ? NODE_REGISTRY.filter((n) =>
+          [n.label, n.type, n.description].some((s) => s.toLowerCase().includes(needle))
+        )
+      : NODE_REGISTRY;
     return ORDER.map((k) => ({ kind: k, items: filtered.filter((n) => n.kind === k) }));
   }, [q]);
 
