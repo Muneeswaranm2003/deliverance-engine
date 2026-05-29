@@ -356,6 +356,7 @@ const InnerEditor = ({ onSubmit, onCancel, isSaving, initialData }: LangflowEdit
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onNodeDragStop={() => commit(nodes, edges)}
             onNodeClick={(_, n) => setSelectedId(n.id)}
             onPaneClick={() => setSelectedId(null)}
             nodeTypes={nodeTypes}
