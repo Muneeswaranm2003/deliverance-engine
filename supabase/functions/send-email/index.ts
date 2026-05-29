@@ -299,12 +299,18 @@ async function sendViaSmtp(srv: SmtpServer, fromOverride: string | null, to: str
   if (!looksLikeHost) {
     return { success: false, error: `Invalid SMTP host "${srv.host}". Use a hostname like email-smtp.us-east-1.amazonaws.com (not your SMTP username).` };
   }
-  const useTls = srv.encryption === "ssl" || srv.encryption === "tls";
+  // denomailer: `tls: true` = implicit TLS (port 465 / SSL).
+  // For STARTTLS (port 587) it MUST start plain and upgrade — `tls: false`.
+  // Many users select "tls" with port 587; treat that as STARTTLS to avoid
+  // "received corrupt message of type InvalidContentType" handshake errors.
+  const useImplicitTls =
+    srv.encryption === "ssl" ||
+    (srv.encryption === "tls" && srv.port === 465);
   const client = new SMTPClient({
     connection: {
       hostname: srv.host,
       port: srv.port,
-      tls: useTls,
+      tls: useImplicitTls,
       auth: { username: srv.username, password: srv.password },
     },
   });
