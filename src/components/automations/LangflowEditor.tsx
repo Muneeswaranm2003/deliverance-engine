@@ -20,7 +20,7 @@ import "@xyflow/react/dist/style.css";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sparkles, Loader2, Zap, Wand2, Save, X } from "lucide-react";
+import { Sparkles, Loader2, Zap, Wand2, Save, X, Undo2, Redo2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +35,7 @@ import {
   type CanvasNode,
 } from "./langflow/flowAdapter";
 import { findNodeDef, type NodeKind } from "./langflow/nodeRegistry";
+import { useFlowHistory } from "./langflow/useFlowHistory";
 
 interface LangflowEditorProps {
   onSubmit: (data: { name: string; description: string; steps: FlowNode[] }) => void;
@@ -61,6 +62,26 @@ const InnerEditor = ({ onSubmit, onCancel, isSaving, initialData }: LangflowEdit
   const wrapperRef = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition, fitView } = useReactFlow();
 
+  const history = useFlowHistory({ nodes: initial.nodes, edges: initial.edges });
+
+  // Commit a snapshot of new state to the undo stack.
+  const commit = useCallback(
+    (nextNodes: CanvasNode[], nextEdges: Edge[]) => {
+      history.commit({ nodes: nextNodes, edges: nextEdges });
+    },
+    [history]
+  );
+
+  const applySnapshot = useCallback((snap: { nodes: CanvasNode[]; edges: Edge[] } | null) => {
+    if (!snap) return;
+    setNodes(snap.nodes);
+    setEdges(snap.edges);
+    setSelectedId((id) => (snap.nodes.some((n) => n.id === id) ? id : null));
+  }, []);
+
+  const handleUndo = useCallback(() => applySnapshot(history.undo()), [history, applySnapshot]);
+  const handleRedo = useCallback(() => applySnapshot(history.redo()), [history, applySnapshot]);
+
   // Initial fit
   useEffect(() => {
     const t = setTimeout(() => fitView({ padding: 0.25, duration: 250 }), 50);
@@ -68,17 +89,31 @@ const InnerEditor = ({ onSubmit, onCancel, isSaving, initialData }: LangflowEdit
   }, [fitView]);
 
   const onNodesChange = useCallback(
-    (changes: NodeChange[]) => setNodes((nds) => applyNodeChanges(changes, nds) as CanvasNode[]),
-    []
+    (changes: NodeChange[]) =>
+      setNodes((nds) => {
+        const next = applyNodeChanges(changes, nds) as CanvasNode[];
+        // Commit on structural changes; position drags commit on drag stop.
+        const structural = changes.some((c) => c.type === "remove" || c.type === "add");
+        if (structural) commit(next, edges);
+        return next;
+      }),
+    [commit, edges]
   );
   const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) => setEdges((eds) => applyEdgeChanges(changes, eds)),
-    []
+    (changes: EdgeChange[]) =>
+      setEdges((eds) => {
+        const next = applyEdgeChanges(changes, eds);
+        const structural = changes.some((c) => c.type === "remove" || c.type === "add");
+        if (structural) commit(nodes, next);
+        return next;
+      }),
+    [commit, nodes]
   );
   const onConnect = useCallback(
     (params: Connection) =>
       setEdges((eds) =>
-        addEdge(
+      {
+        const next = addEdge(
           {
             ...params,
             type: "smoothstep",
@@ -86,9 +121,11 @@ const InnerEditor = ({ onSubmit, onCancel, isSaving, initialData }: LangflowEdit
             style: { stroke: "hsl(var(--primary))", strokeWidth: 2 },
           },
           eds
-        )
-      ),
-    []
+        );
+        commit(nodes, next);
+        return next;
+      }),
+    [commit, nodes]
   );
 
   const addNodeAt = useCallback(
@@ -108,10 +145,14 @@ const InnerEditor = ({ onSubmit, onCancel, isSaving, initialData }: LangflowEdit
           config: { ...(def.defaultConfig ?? {}) },
         },
       };
-      setNodes((nds) => [...nds, newNode]);
+      setNodes((nds) => {
+        const next = [...nds, newNode];
+        commit(next, edges);
+        return next;
+      });
       setSelectedId(id);
     },
-    [screenToFlowPosition]
+    [screenToFlowPosition, commit, edges]
   );
 
   const onDrop = useCallback(
@@ -138,36 +179,63 @@ const InnerEditor = ({ onSubmit, onCancel, isSaving, initialData }: LangflowEdit
     const laid = autoLayout(nodes, edges);
     setNodes(laid.nodes);
     setEdges(laid.edges);
+    commit(laid.nodes, laid.edges);
     setTimeout(() => fitView({ padding: 0.25, duration: 250 }), 50);
-  }, [nodes, edges, fitView]);
+  }, [nodes, edges, fitView, commit]);
 
   const handleDeleteNode = useCallback((id: string) => {
-    setNodes((nds) => nds.filter((n) => n.id !== id));
-    setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
+    setNodes((nds) => {
+      const nextNodes = nds.filter((n) => n.id !== id);
+      setEdges((eds) => {
+        const nextEdges = eds.filter((e) => e.source !== id && e.target !== id);
+        commit(nextNodes, nextEdges);
+        return nextEdges;
+      });
+      return nextNodes;
+    });
     setSelectedId((s) => (s === id ? null : s));
-  }, []);
+  }, [commit]);
 
   const handleNodeChange = useCallback(
     (id: string, patch: Partial<CanvasNode["data"]>) => {
-      setNodes((nds) =>
-        nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n))
-      );
+      setNodes((nds) => {
+        const next = nds.map((n) =>
+          n.id === id ? { ...n, data: { ...n.data, ...patch } } : n
+        );
+        commit(next, edges);
+        return next;
+      });
     },
-    []
+    [commit, edges]
   );
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts (delete + undo/redo)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const inField = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && (e.key === "z" || e.key === "Z")) {
+        if (inField) return;
+        e.preventDefault();
+        if (e.shiftKey) handleRedo();
+        else handleUndo();
+        return;
+      }
+      if (mod && (e.key === "y" || e.key === "Y")) {
+        if (inField) return;
+        e.preventDefault();
+        handleRedo();
+        return;
+      }
       if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
-        const target = e.target as HTMLElement;
-        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+        if (inField) return;
         handleDeleteNode(selectedId);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selectedId, handleDeleteNode]);
+  }, [selectedId, handleDeleteNode, handleUndo, handleRedo]);
 
   const selectedNode = nodes.find((n) => n.id === selectedId) ?? null;
 
@@ -209,6 +277,27 @@ const InnerEditor = ({ onSubmit, onCancel, isSaving, initialData }: LangflowEdit
           />
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={handleUndo}
+            disabled={!history.canUndo}
+            title="Undo (Ctrl/Cmd+Z)"
+          >
+            <Undo2 className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={handleRedo}
+            disabled={!history.canRedo}
+            title="Redo (Shift+Ctrl/Cmd+Z)"
+          >
+            <Redo2 className="w-3.5 h-3.5" />
+          </Button>
+          <div className="h-5 w-px bg-border/60 mx-0.5" />
           <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={handleAutoLayout}>
             <Wand2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Auto-layout</span>
@@ -267,6 +356,7 @@ const InnerEditor = ({ onSubmit, onCancel, isSaving, initialData }: LangflowEdit
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onNodeDragStop={() => commit(nodes, edges)}
             onNodeClick={(_, n) => setSelectedId(n.id)}
             onPaneClick={() => setSelectedId(null)}
             nodeTypes={nodeTypes}
