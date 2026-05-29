@@ -92,6 +92,30 @@ const emptyForm: SmtpForm = {
   daily_limit: "",
 };
 
+const KNOWN_SMTP_HOST_HINTS: Record<string, string> = {
+  "ses-smtp-user": "email-smtp.<region>.amazonaws.com (e.g. email-smtp.us-east-1.amazonaws.com)",
+  "apikey": "smtp.sendgrid.net",
+  "postmaster": "smtp.mailgun.org",
+  "resend": "smtp.resend.com",
+};
+
+const validateSmtpHost = (host: string, username: string): string | null => {
+  if (!host) return "Host is required.";
+  // Must contain at least one dot and a valid TLD-ish suffix
+  const hostnameRe = /^(?=.{1,253}$)([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+  if (!hostnameRe.test(host)) {
+    // Detect common mistake: pasted SMTP username instead of host
+    const lower = host.toLowerCase();
+    for (const [needle, suggestion] of Object.entries(KNOWN_SMTP_HOST_HINTS)) {
+      if (lower.startsWith(needle) || lower === username.toLowerCase()) {
+        return `"${host}" looks like an SMTP username, not a hostname. Use the provider's SMTP host (e.g. ${suggestion}).`;
+      }
+    }
+    return `"${host}" is not a valid hostname. Use a domain like smtp.example.com (not your username or IP).`;
+  }
+  return null;
+};
+
 export const SmtpServersManager = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -119,12 +143,16 @@ export const SmtpServersManager = () => {
   const saveServer = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error("Not authenticated");
+      const host = form.host.trim();
+      const username = form.username.trim();
+      const hostError = validateSmtpHost(host, username);
+      if (hostError) throw new Error(hostError);
       const payload = {
         user_id: user.id,
         label: form.label.trim() || "Primary SMTP",
-        host: form.host.trim(),
+        host,
         port: Number(form.port) || 587,
-        username: form.username.trim(),
+        username,
         password: form.password,
         encryption: form.encryption,
         from_email: form.from_email.trim(),
@@ -415,6 +443,9 @@ export const SmtpServersManager = () => {
                   onChange={(e) => setForm({ ...form, host: e.target.value })}
                   placeholder="smtp.example.com"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Must be a domain (e.g. <code className="font-mono">email-smtp.us-east-1.amazonaws.com</code>), not your SMTP username.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Port</Label>
