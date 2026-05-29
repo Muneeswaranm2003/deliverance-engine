@@ -92,6 +92,30 @@ const emptyForm: SmtpForm = {
   daily_limit: "",
 };
 
+const KNOWN_SMTP_HOST_HINTS: Record<string, string> = {
+  "ses-smtp-user": "email-smtp.<region>.amazonaws.com (e.g. email-smtp.us-east-1.amazonaws.com)",
+  "apikey": "smtp.sendgrid.net",
+  "postmaster": "smtp.mailgun.org",
+  "resend": "smtp.resend.com",
+};
+
+const validateSmtpHost = (host: string, username: string): string | null => {
+  if (!host) return "Host is required.";
+  // Must contain at least one dot and a valid TLD-ish suffix
+  const hostnameRe = /^(?=.{1,253}$)([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+  if (!hostnameRe.test(host)) {
+    // Detect common mistake: pasted SMTP username instead of host
+    const lower = host.toLowerCase();
+    for (const [needle, suggestion] of Object.entries(KNOWN_SMTP_HOST_HINTS)) {
+      if (lower.startsWith(needle) || lower === username.toLowerCase()) {
+        return `"${host}" looks like an SMTP username, not a hostname. Use the provider's SMTP host (e.g. ${suggestion}).`;
+      }
+    }
+    return `"${host}" is not a valid hostname. Use a domain like smtp.example.com (not your username or IP).`;
+  }
+  return null;
+};
+
 export const SmtpServersManager = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
