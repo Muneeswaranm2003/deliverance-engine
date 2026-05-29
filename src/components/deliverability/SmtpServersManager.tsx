@@ -119,12 +119,16 @@ export const SmtpServersManager = () => {
   const saveServer = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error("Not authenticated");
+      const host = form.host.trim();
+      const username = form.username.trim();
+      const hostError = validateSmtpHost(host, username);
+      if (hostError) throw new Error(hostError);
       const payload = {
         user_id: user.id,
         label: form.label.trim() || "Primary SMTP",
-        host: form.host.trim(),
+        host,
         port: Number(form.port) || 587,
-        username: form.username.trim(),
+        username,
         password: form.password,
         encryption: form.encryption,
         from_email: form.from_email.trim(),
