@@ -443,6 +443,9 @@ export const SmtpServersManager = () => {
                   onChange={(e) => setForm({ ...form, host: e.target.value })}
                   placeholder="smtp.example.com"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Must be a domain (e.g. <code className="font-mono">email-smtp.us-east-1.amazonaws.com</code>), not your SMTP username.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Port</Label>
