@@ -1,10 +1,11 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SmtpServersManager } from "@/components/deliverability/SmtpServersManager";
+import { SesDomainsManager } from "@/components/deliverability/SesDomainsManager";
 import { ApiKeysManager } from "@/components/settings/ApiKeysManager";
 import { IpPoolsManager } from "@/components/settings/IpPoolsManager";
 import { UserRolesManager } from "@/components/deliverability/UserRolesManager";
-import { Server, ShieldCheck, Globe, GitBranch, Key, Network, Lock, Users } from "lucide-react";
+import { Server, ShieldCheck, Globe, GitBranch, Key, Network, Lock, Users, Cloud } from "lucide-react";
 import { motion } from "framer-motion";
 import { useUserRoles } from "@/hooks/useUserRole";
 import { Badge } from "@/components/ui/badge";
@@ -34,9 +35,12 @@ const Deliverability = () => {
         transition={{ duration: 0.3 }}
       >
         <Tabs defaultValue="smtp" className="space-y-6">
-          <TabsList className="grid w-full max-w-5xl grid-cols-7">
+          <TabsList className="grid w-full max-w-5xl grid-cols-8">
             <TabsTrigger value="smtp" className="gap-2">
               <Server className="w-4 h-4" /> SMTP
+            </TabsTrigger>
+            <TabsTrigger value="ses" className="gap-2">
+              <Cloud className="w-4 h-4" /> AWS SES
             </TabsTrigger>
             <TabsTrigger value="api" className="gap-2">
               <Key className="w-4 h-4" /> API Keys
@@ -63,6 +67,16 @@ const Deliverability = () => {
           <TabsContent value="smtp" className="space-y-4">
             <div className="glass rounded-xl p-6">
               <SmtpServersManager />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="ses" className="space-y-4">
+            <div className="glass rounded-xl p-6">
+              {isLoading ? null : canManageDeliverability ? (
+                <SesDomainsManager />
+              ) : (
+                <RestrictedView feature="AWS SES domains" />
+              )}
             </div>
           </TabsContent>
 

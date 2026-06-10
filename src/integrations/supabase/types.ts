@@ -932,6 +932,68 @@ export type Database = {
         }
         Relationships: []
       }
+      ses_identities: {
+        Row: {
+          created_at: string
+          dkim_tokens: Json
+          dkim_verification_status: string | null
+          dmarc_record: string | null
+          domain: string
+          id: string
+          identity_type: string
+          last_checked_at: string | null
+          last_error: string | null
+          parent_id: string | null
+          region: string
+          spf_record: string | null
+          updated_at: string
+          user_id: string
+          verification_status: string
+        }
+        Insert: {
+          created_at?: string
+          dkim_tokens?: Json
+          dkim_verification_status?: string | null
+          dmarc_record?: string | null
+          domain: string
+          id?: string
+          identity_type: string
+          last_checked_at?: string | null
+          last_error?: string | null
+          parent_id?: string | null
+          region?: string
+          spf_record?: string | null
+          updated_at?: string
+          user_id: string
+          verification_status?: string
+        }
+        Update: {
+          created_at?: string
+          dkim_tokens?: Json
+          dkim_verification_status?: string | null
+          dmarc_record?: string | null
+          domain?: string
+          id?: string
+          identity_type?: string
+          last_checked_at?: string | null
+          last_error?: string | null
+          parent_id?: string | null
+          region?: string
+          spf_record?: string | null
+          updated_at?: string
+          user_id?: string
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ses_identities_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "ses_identities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       smtp_servers: {
         Row: {
           created_at: string
