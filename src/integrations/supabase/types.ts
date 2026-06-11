@@ -941,10 +941,13 @@ export type Database = {
           domain: string
           id: string
           identity_type: string
+          is_active: boolean
           last_checked_at: string | null
           last_error: string | null
+          last_used_at: string | null
           parent_id: string | null
           region: string
+          send_count: number
           spf_record: string | null
           updated_at: string
           user_id: string
@@ -958,10 +961,13 @@ export type Database = {
           domain: string
           id?: string
           identity_type: string
+          is_active?: boolean
           last_checked_at?: string | null
           last_error?: string | null
+          last_used_at?: string | null
           parent_id?: string | null
           region?: string
+          send_count?: number
           spf_record?: string | null
           updated_at?: string
           user_id: string
@@ -975,10 +981,13 @@ export type Database = {
           domain?: string
           id?: string
           identity_type?: string
+          is_active?: boolean
           last_checked_at?: string | null
           last_error?: string | null
+          last_used_at?: string | null
           parent_id?: string | null
           region?: string
+          send_count?: number
           spf_record?: string | null
           updated_at?: string
           user_id?: string

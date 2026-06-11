@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
 import {
   Plus,
   Trash2,
@@ -37,6 +38,7 @@ import {
   Copy,
   Send,
   ChevronRight,
+  Shuffle,
 } from "lucide-react";
 
 interface SesIdentity {
@@ -51,6 +53,9 @@ interface SesIdentity {
   dkim_tokens: string[];
   last_checked_at: string | null;
   last_error: string | null;
+  is_active: boolean;
+  send_count: number;
+  last_used_at: string | null;
 }
 
 interface DnsRecord { type: string; host: string; value: string; ttl: number }
@@ -133,7 +138,10 @@ export const SesDomainsManager = () => {
   });
 
   const [sendOpen, setSendOpen] = useState(false);
-  const [sendForm, setSendForm] = useState({ identity_id: "", from: "", to: "", subject: "", text: "" });
+  const [sendForm, setSendForm] = useState<{
+    identity_id: string; parent_id: string; rotate: boolean;
+    from: string; to: string; subject: string; text: string; local_part: string;
+  }>({ identity_id: "", parent_id: "", rotate: false, from: "", to: "", subject: "", text: "", local_part: "noreply" });
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -207,18 +215,47 @@ export const SesDomainsManager = () => {
 
   const sendTest = useMutation({
     mutationFn: async () => {
+      const payload: any = {
+        to: sendForm.to, subject: sendForm.subject, text: sendForm.text,
+      };
+      if (sendForm.rotate) {
+        payload.rotate = true;
+        if (sendForm.parent_id) payload.parent_id = sendForm.parent_id;
+        payload.local_part = sendForm.local_part || "noreply";
+      } else {
+        payload.identity_id = sendForm.identity_id;
+        payload.from = sendForm.from;
+      }
       const { data, error } = await supabase.functions.invoke("ses-manage", {
-        body: { action: "send", ...sendForm },
+        body: { action: "send", ...payload },
       });
       if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || "Failed");
       return data;
     },
     onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["ses_identities"] });
       setSendOpen(false);
-      toast({ title: "Email sent", description: `Message ID: ${data.message_id}` });
+      toast({
+        title: "Email sent",
+        description: data.used_domain
+          ? `From ${data.from} (rotated to ${data.used_domain})`
+          : `Message ID: ${data.message_id}`,
+      });
     },
     onError: (e: Error) => toast({ title: "Send failed", description: e.message, variant: "destructive" }),
+  });
+
+  const setActive = useMutation({
+    mutationFn: async (vars: { id: string; is_active: boolean }) => {
+      const { data, error } = await supabase.functions.invoke("ses-manage", {
+        body: { action: "set_active", ...vars },
+      });
+      if (error) throw new Error(error.message);
+      if (!data?.success) throw new Error(data?.error || "Failed");
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["ses_identities"] }),
+    onError: (e: Error) => toast({ title: "Update failed", description: e.message, variant: "destructive" }),
   });
 
   const openAdd = (parentId: string | null) => {
@@ -228,7 +265,20 @@ export const SesDomainsManager = () => {
   };
 
   const openSend = (id: string, domain: string) => {
-    setSendForm({ identity_id: id, from: `noreply@${domain}`, to: "", subject: "Test from SES", text: "Hello from AWS SES via Lovable." });
+    setSendForm({
+      identity_id: id, parent_id: "", rotate: false,
+      from: `noreply@${domain}`, to: "", subject: "Test from SES",
+      text: "Hello from AWS SES via Lovable.", local_part: "noreply",
+    });
+    setSendOpen(true);
+  };
+
+  const openSendRotated = (parentId: string) => {
+    setSendForm({
+      identity_id: "", parent_id: parentId, rotate: true,
+      from: "", to: "", subject: "Test from SES (rotated)",
+      text: "Hello from AWS SES via Lovable.", local_part: "noreply",
+    });
     setSendOpen(true);
   };
 
@@ -299,6 +349,11 @@ export const SesDomainsManager = () => {
                       <Plus className="w-3 h-3" /> Subdomain
                     </Button>
                   )}
+                  {childrenOf(d.id).some((c) => c.verification_status === "Success" && c.is_active) && (
+                    <Button variant="ghost" size="sm" className="gap-1" onClick={() => openSendRotated(d.id)}>
+                      <Shuffle className="w-3 h-3" /> Send (rotated)
+                    </Button>
+                  )}
                   <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleteId(d.id)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -314,9 +369,23 @@ export const SesDomainsManager = () => {
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium truncate">{c.domain}</span>
                           {statusBadge(c.verification_status)}
+                          {c.verification_status === "Success" && (
+                            <Badge variant="outline" className="text-xs">
+                              {c.send_count ?? 0} sent
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
+                        {c.verification_status === "Success" && (
+                          <div className="flex items-center gap-2 mr-2" title="Include in rotation">
+                            <Switch
+                              checked={c.is_active}
+                              onCheckedChange={(v) => setActive.mutate({ id: c.id, is_active: v })}
+                            />
+                            <span className="text-xs text-muted-foreground">Rotate</span>
+                          </div>
+                        )}
                         <Button variant="ghost" size="sm" onClick={() => setDnsDialog({ open: true, domain: c.domain, records: buildLocalDns(c) })}>
                           DNS
                         </Button>
@@ -398,11 +467,30 @@ export const SesDomainsManager = () => {
       <Dialog open={sendOpen} onOpenChange={setSendOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Send via SES</DialogTitle>
-            <DialogDescription>Send a test email from this verified subdomain.</DialogDescription>
+            <DialogTitle>{sendForm.rotate ? "Send via SES (rotated)" : "Send via SES"}</DialogTitle>
+            <DialogDescription>
+              {sendForm.rotate
+                ? "We'll auto-pick the least-recently-used verified subdomain for this domain."
+                : "Send a test email from this verified subdomain."}
+            </DialogDescription>
           </DialogHeader>
           <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); sendTest.mutate(); }}>
-            <div className="space-y-2"><Label>From</Label><Input value={sendForm.from} onChange={(e) => setSendForm({ ...sendForm, from: e.target.value })} required /></div>
+            {sendForm.rotate ? (
+              <div className="space-y-2">
+                <Label>From (local part)</Label>
+                <Input
+                  value={sendForm.local_part}
+                  onChange={(e) => setSendForm({ ...sendForm, local_part: e.target.value })}
+                  placeholder="noreply"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  We'll append @&lt;rotated-subdomain&gt; automatically.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2"><Label>From</Label><Input value={sendForm.from} onChange={(e) => setSendForm({ ...sendForm, from: e.target.value })} required /></div>
+            )}
             <div className="space-y-2"><Label>To</Label><Input type="email" value={sendForm.to} onChange={(e) => setSendForm({ ...sendForm, to: e.target.value })} required /></div>
             <div className="space-y-2"><Label>Subject</Label><Input value={sendForm.subject} onChange={(e) => setSendForm({ ...sendForm, subject: e.target.value })} required /></div>
             <div className="space-y-2"><Label>Message</Label><textarea className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm" value={sendForm.text} onChange={(e) => setSendForm({ ...sendForm, text: e.target.value })} required /></div>
