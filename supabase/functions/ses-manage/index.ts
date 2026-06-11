@@ -236,23 +236,53 @@ Deno.serve(async (req) => {
 
     // ───── SEND email via SES v2 ─────
     if (action === "send") {
-      const { from, to, subject, html, text, identity_id } = params as {
-        from: string; to: string; subject: string;
-        html?: string; text?: string; identity_id?: string;
+      const {
+        from, to, subject, html, text,
+        identity_id, parent_id, rotate, local_part,
+      } = params as {
+        from?: string; to: string; subject: string;
+        html?: string; text?: string;
+        identity_id?: string; parent_id?: string;
+        rotate?: boolean; local_part?: string;
       };
-      if (!from || !to || !subject || (!html && !text)) {
-        throw new Error("from, to, subject, and html/text required");
+      if (!to || !subject || (!html && !text)) {
+        throw new Error("to, subject, and html/text required");
       }
+
       let region = DEFAULT_REGION;
-      if (identity_id) {
+      let chosen: any = null;
+
+      if (rotate || parent_id) {
+        // Pick the least-recently-used verified, active subdomain
+        let q = supabase
+          .from("ses_identities")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("identity_type", "subdomain")
+          .eq("is_active", true)
+          .eq("verification_status", "Success")
+          .order("last_used_at", { ascending: true, nullsFirst: true })
+          .limit(1);
+        if (parent_id) q = q.eq("parent_id", parent_id);
+        const { data: pool } = await q;
+        chosen = pool?.[0];
+        if (!chosen) throw new Error("No verified active subdomain available for rotation");
+      } else if (identity_id) {
         const { data: row } = await supabase
-          .from("ses_identities").select("region,verification_status")
-          .eq("id", identity_id).single();
-        if (row?.region) region = row.region;
-        if (row && row.verification_status !== "Success") {
-          throw new Error("Identity is not verified yet");
-        }
+          .from("ses_identities").select("*").eq("id", identity_id).single();
+        if (!row) throw new Error("Identity not found");
+        if (row.verification_status !== "Success") throw new Error("Identity is not verified yet");
+        chosen = row;
       }
+
+      if (chosen) region = chosen.region;
+
+      const fromAddress = from
+        ? from
+        : chosen
+          ? `${local_part || "noreply"}@${chosen.domain}`
+          : null;
+      if (!fromAddress) throw new Error("from address (or rotate/identity_id) is required");
 
       const result = await sesRequest<{ MessageId: string }>({
         region,
@@ -260,7 +290,7 @@ Deno.serve(async (req) => {
         method: "POST",
         path: "/v2/email/outbound-emails",
         body: {
-          FromEmailAddress: from,
+          FromEmailAddress: fromAddress,
           Destination: { ToAddresses: [to] },
           Content: {
             Simple: {
@@ -273,10 +303,38 @@ Deno.serve(async (req) => {
           },
         },
       });
+
+      if (chosen) {
+        await supabase.from("ses_identities").update({
+          last_used_at: new Date().toISOString(),
+          send_count: (chosen.send_count || 0) + 1,
+        }).eq("id", chosen.id);
+      }
+
       return new Response(
-        JSON.stringify({ success: true, message_id: result.MessageId }),
+        JSON.stringify({
+          success: true,
+          message_id: result.MessageId,
+          from: fromAddress,
+          used_identity_id: chosen?.id ?? null,
+          used_domain: chosen?.domain ?? null,
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
+    }
+
+    // ───── TOGGLE active flag for rotation ─────
+    if (action === "set_active") {
+      const { id, is_active } = params as { id: string; is_active: boolean };
+      const { error } = await supabase
+        .from("ses_identities")
+        .update({ is_active })
+        .eq("id", id)
+        .eq("user_id", user.id);
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     throw new Error(`Unknown action: ${action}`);
