@@ -185,8 +185,15 @@ Deno.serve(async (req) => {
         path: `/v2/email/identities/${encodeURIComponent(row.domain)}`,
       });
 
-      const verification = info.VerificationStatus || "Pending";
       const dkim = info.DkimAttributes?.Status || null;
+      // SES v2 returns a boolean VerifiedForSendingStatus.
+      // Treat sending-verified OR DKIM=SUCCESS as success.
+      const verification =
+        info.VerifiedForSendingStatus === true || dkim === "SUCCESS"
+          ? "Success"
+          : dkim === "FAILED"
+            ? "Failed"
+            : "Pending";
 
       await supabase.from("ses_identities").update({
         verification_status: verification,
