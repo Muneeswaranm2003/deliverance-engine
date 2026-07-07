@@ -1,9 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -29,15 +27,16 @@ import {
   Trash2,
   Copy,
   Eye,
-  Loader2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import TemplateBuilder, { TemplateDraft } from "@/components/templates/TemplateBuilder";
 
 interface Template {
   id: string;
   name: string;
   subject: string;
+  preheader?: string;
   content: string;
   category: string;
   createdAt: Date;
@@ -103,22 +102,45 @@ The {{company}} Team`,
   },
 ];
 
+const STORAGE_KEY = "lovable.templates.v2";
+
+const loadTemplates = (): Template[] => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultTemplates;
+    const parsed = JSON.parse(raw);
+    return parsed.map((t: any) => ({
+      ...t,
+      createdAt: new Date(t.createdAt),
+      updatedAt: new Date(t.updatedAt),
+    }));
+  } catch {
+    return defaultTemplates;
+  }
+};
+
 const Templates = () => {
-  const [templates, setTemplates] = useState<Template[]>(defaultTemplates);
+  const [templates, setTemplates] = useState<Template[]>(loadTemplates);
   const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<TemplateDraft>({
     name: "",
     subject: "",
+    preheader: "",
     content: "",
     category: "Other",
   });
 
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+  }, [templates]);
+
   const resetForm = () => {
-    setFormData({ name: "", subject: "", content: "", category: "Other" });
+    setFormData({ name: "", subject: "", preheader: "", content: "", category: "Other" });
     setEditingTemplate(null);
   };
 
@@ -127,6 +149,7 @@ const Templates = () => {
     setFormData({
       name: template.name,
       subject: template.subject,
+      preheader: template.preheader ?? "",
       content: template.content,
       category: template.category,
     });
@@ -155,9 +178,7 @@ const Templates = () => {
     toast({ title: "Template deleted" });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSubmit = () => {
     if (editingTemplate) {
       setTemplates(
         templates.map((t) =>
@@ -183,10 +204,15 @@ const Templates = () => {
   };
 
   const filteredTemplates = templates.filter(
-    (template) =>
-      template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      template.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      template.category.toLowerCase().includes(searchQuery.toLowerCase())
+    (template) => {
+      const q = searchQuery.toLowerCase();
+      const matchesQuery =
+        template.name.toLowerCase().includes(q) ||
+        template.subject.toLowerCase().includes(q) ||
+        template.category.toLowerCase().includes(q);
+      const matchesCat = categoryFilter === "all" || template.category === categoryFilter;
+      return matchesQuery && matchesCat;
+    }
   );
 
   const getCategoryColor = (category: string) => {
@@ -219,79 +245,25 @@ const Templates = () => {
               New Template
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-6xl w-[95vw] h-[92vh] p-0 gap-0 overflow-hidden flex flex-col">
+            <DialogHeader className="px-4 py-3 border-b border-border/60">
               <DialogTitle>
                 {editingTemplate ? "Edit Template" : "Create New Template"}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Template Name *</Label>
-                  <Input
-                    id="name"
-                    placeholder="e.g., Welcome Email"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
-                  <select
-                    id="category"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    {categories.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="subject">Subject Line *</Label>
-                <Input
-                  id="subject"
-                  placeholder="e.g., Welcome to {{company}}!"
-                  value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  Use {"{{firstName}}"}, {"{{lastName}}"}, {"{{company}}"} for personalization
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="content">Email Content *</Label>
-                <Textarea
-                  id="content"
-                  placeholder="Write your email content here..."
-                  value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  className="min-h-[250px] font-mono text-sm"
-                  required
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={() => {
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <TemplateBuilder
+                value={formData}
+                onChange={(patch) => setFormData((f) => ({ ...f, ...patch }))}
+                categories={categories}
+                onSubmit={handleSubmit}
+                submitLabel={editingTemplate ? "Update Template" : "Create Template"}
+                onCancel={() => {
                   setIsDialogOpen(false);
                   resetForm();
-                }}>
-                  Cancel
-                </Button>
-                <Button type="submit" variant="hero">
-                  {editingTemplate ? "Update Template" : "Create Template"}
-                </Button>
-              </div>
-            </form>
+                }}
+              />
+            </div>
           </DialogContent>
         </Dialog>
       }
@@ -307,7 +279,22 @@ const Templates = () => {
             className="pl-10"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setCategoryFilter("all")}
+            className={`text-xs px-3 py-1.5 rounded-full border transition ${categoryFilter === "all" ? "bg-primary/15 border-primary/40 text-primary" : "border-border text-muted-foreground hover:bg-secondary"}`}
+          >
+            All
+          </button>
+          {categories.map((c) => (
+            <button
+              key={c}
+              onClick={() => setCategoryFilter(c)}
+              className={`text-xs px-3 py-1.5 rounded-full border transition ${categoryFilter === c ? "bg-primary/15 border-primary/40 text-primary" : "border-border text-muted-foreground hover:bg-secondary"}`}
+            >
+              {c}
+            </button>
+          ))}
           <Badge variant="secondary" className="gap-1.5 py-1.5 px-3">
             <FileText className="w-3.5 h-3.5" />
             {templates.length} templates
