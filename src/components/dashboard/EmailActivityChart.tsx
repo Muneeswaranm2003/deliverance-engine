@@ -2,38 +2,47 @@ import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { Loader2, BarChart3 } from "lucide-react";
+import { Loader2, BarChart3, AlertTriangle, RefreshCw } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "@/components/ui/button";
 
 export const EmailActivityChart = () => {
   const isMobile = useIsMobile();
-  const { data: chartData, isLoading } = useQuery({
+  const { data: chartData, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["email-activity-chart"],
+    retry: 1,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
     queryFn: async () => {
       const days = 7;
-      const results: { date: string; sent: number; opened: number; clicked: number }[] = [];
+      const start = subDays(new Date(), days - 1);
+      const startIso = format(start, "yyyy-MM-dd") + "T00:00:00";
 
+      const { data, error: qErr } = await supabase
+        .from("email_logs")
+        .select("created_at, status, opened_at, clicked_at")
+        .gte("created_at", startIso)
+        .order("created_at", { ascending: true });
+
+      if (qErr) throw qErr;
+
+      const buckets = new Map<string, { date: string; sent: number; opened: number; clicked: number }>();
       for (let i = days - 1; i >= 0; i--) {
         const day = subDays(new Date(), i);
-        const dayStart = format(day, "yyyy-MM-dd") + "T00:00:00";
-        const dayEnd = format(day, "yyyy-MM-dd") + "T23:59:59";
-
-        const [sentRes, openedRes, clickedRes] = await Promise.all([
-          supabase.from("email_logs").select("id", { count: "exact", head: true }).gte("created_at", dayStart).lte("created_at", dayEnd).eq("status", "sent"),
-          supabase.from("email_logs").select("id", { count: "exact", head: true }).gte("created_at", dayStart).lte("created_at", dayEnd).not("opened_at", "is", null),
-          supabase.from("email_logs").select("id", { count: "exact", head: true }).gte("created_at", dayStart).lte("created_at", dayEnd).not("clicked_at", "is", null),
-        ]);
-
-        results.push({
-          date: format(day, "EEE"),
-          sent: sentRes.count || 0,
-          opened: openedRes.count || 0,
-          clicked: clickedRes.count || 0,
-        });
+        buckets.set(format(day, "yyyy-MM-dd"), { date: format(day, "EEE"), sent: 0, opened: 0, clicked: 0 });
       }
 
-      return results;
+      (data ?? []).forEach((row) => {
+        const key = format(new Date(row.created_at as string), "yyyy-MM-dd");
+        const bucket = buckets.get(key);
+        if (!bucket) return;
+        if (row.status === "sent" || row.opened_at || row.clicked_at) bucket.sent += 1;
+        if (row.opened_at) bucket.opened += 1;
+        if (row.clicked_at) bucket.clicked += 1;
+      });
+
+      return Array.from(buckets.values());
     },
   });
 
@@ -70,6 +79,18 @@ export const EmailActivityChart = () => {
       {isLoading ? (
         <div className="flex items-center justify-center" style={{ height: chartHeight }}>
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      ) : isError ? (
+        <div className="flex flex-col items-center justify-center text-muted-foreground" style={{ height: chartHeight }}>
+          <AlertTriangle className="w-9 h-9 mb-3 text-destructive/70" />
+          <p className="text-xs sm:text-sm">Couldn't load email activity</p>
+          <p className="text-[11px] sm:text-xs mt-1 text-center px-4 max-w-xs truncate">
+            {(error as Error)?.message ?? "Unknown error"}
+          </p>
+          <Button variant="outline" size="sm" className="mt-3 gap-2" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`} />
+            Retry
+          </Button>
         </div>
       ) : !hasData ? (
         <div className="flex flex-col items-center justify-center text-muted-foreground" style={{ height: chartHeight }}>
