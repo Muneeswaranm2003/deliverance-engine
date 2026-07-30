@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -11,22 +12,32 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { EmailActivityChart } from "@/components/dashboard/EmailActivityChart";
 import { RecentCampaigns } from "@/components/dashboard/RecentCampaigns";
+import { DateRangeFilter, makePresetRange, type AnalyticsRange } from "@/components/dashboard/DateRangeFilter";
 
 type Campaign = Tables<"campaigns">;
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [range, setRange] = useState<AnalyticsRange>(() => makePresetRange(7, "7 days"));
+  const fromIso = range.from.toISOString();
+  const toIso = range.to.toISOString();
 
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ["dashboard-stats"],
+    queryKey: ["dashboard-stats", fromIso, toIso],
+    retry: 1,
     queryFn: async () => {
+      const inRange = <T,>(q: T) =>
+        (q as unknown as { gte: (c: string, v: string) => { lte: (c: string, v: string) => T } })
+          .gte("created_at", fromIso)
+          .lte("created_at", toIso);
+
       const [campaignsRes, contactsRes, emailsSentRes, automationsRes, openedRes] = await Promise.all([
-        supabase.from("campaigns").select("id", { count: "exact", head: true }),
-        supabase.from("contacts").select("id", { count: "exact", head: true }),
-        supabase.from("email_logs").select("id", { count: "exact", head: true }).eq("status", "sent"),
-        supabase.from("automations").select("id", { count: "exact", head: true }).eq("enabled", true),
-        supabase.from("email_logs").select("id", { count: "exact", head: true }).not("opened_at", "is", null),
+        inRange(supabase.from("campaigns").select("id", { count: "exact", head: true })),
+        inRange(supabase.from("contacts").select("id", { count: "exact", head: true })),
+        inRange(supabase.from("email_logs").select("id", { count: "exact", head: true }).eq("status", "sent")),
+        inRange(supabase.from("automations").select("id", { count: "exact", head: true }).eq("enabled", true)),
+        inRange(supabase.from("email_logs").select("id", { count: "exact", head: true }).not("opened_at", "is", null)),
       ]);
 
       const sent = emailsSentRes.count || 0;
@@ -44,11 +55,13 @@ const Dashboard = () => {
   });
 
   const { data: recentCampaigns, isLoading: campaignsLoading } = useQuery({
-    queryKey: ["recent-campaigns"],
+    queryKey: ["recent-campaigns", fromIso, toIso],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("campaigns")
         .select("*")
+        .gte("created_at", fromIso)
+        .lte("created_at", toIso)
         .order("created_at", { ascending: false })
         .limit(5);
 
@@ -59,7 +72,7 @@ const Dashboard = () => {
 
   const statsDisplay = [
     {
-      label: "Total Campaigns",
+      label: "Campaigns",
       value: stats?.campaigns || 0,
       icon: Send,
       color: "text-primary",
@@ -67,7 +80,7 @@ const Dashboard = () => {
       trend: 12,
     },
     {
-      label: "Total Contacts",
+      label: "New Contacts",
       value: stats?.contacts || 0,
       icon: Users,
       color: "text-emerald-400",
@@ -103,10 +116,13 @@ const Dashboard = () => {
       title="Dashboard"
       description={`${greeting()}, ${user?.email?.split("@")[0] || "User"}`}
       action={
-        <Button variant="hero" onClick={() => navigate("/campaigns/new")} className="gap-2">
-          Create Campaign
-          <ArrowUpRight className="w-4 h-4" />
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <DateRangeFilter value={range} onChange={setRange} />
+          <Button variant="hero" onClick={() => navigate("/campaigns/new")} className="gap-2">
+            Create Campaign
+            <ArrowUpRight className="w-4 h-4" />
+          </Button>
+        </div>
       }
     >
       {/* Stats Grid */}
@@ -135,7 +151,7 @@ const Dashboard = () => {
       {/* Chart + Recent Campaigns */}
       <div className="grid lg:grid-cols-5 gap-6">
         <div className="lg:col-span-3">
-          <EmailActivityChart />
+          <EmailActivityChart range={range} />
         </div>
         <div className="lg:col-span-2">
           <RecentCampaigns campaigns={recentCampaigns} isLoading={campaignsLoading} />

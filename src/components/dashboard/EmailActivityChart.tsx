@@ -3,35 +3,41 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Loader2, BarChart3, AlertTriangle, RefreshCw } from "lucide-react";
-import { format, subDays } from "date-fns";
+import { format, subDays, eachDayOfInterval, startOfDay, endOfDay } from "date-fns";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
+import type { AnalyticsRange } from "./DateRangeFilter";
 
-export const EmailActivityChart = () => {
+interface EmailActivityChartProps {
+  range?: AnalyticsRange;
+}
+
+export const EmailActivityChart = ({ range }: EmailActivityChartProps) => {
   const isMobile = useIsMobile();
+  const from = range ? range.from : startOfDay(subDays(new Date(), 6));
+  const to = range ? range.to : endOfDay(new Date());
+  const days = range?.days ?? 7;
+
   const { data: chartData, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ["email-activity-chart"],
+    queryKey: ["email-activity-chart", from.toISOString(), to.toISOString()],
     retry: 1,
     staleTime: 60_000,
     refetchInterval: 60_000,
     queryFn: async () => {
-      const days = 7;
-      const start = subDays(new Date(), days - 1);
-      const startIso = format(start, "yyyy-MM-dd") + "T00:00:00";
-
       const { data, error: qErr } = await supabase
         .from("email_logs")
         .select("created_at, status, opened_at, clicked_at")
-        .gte("created_at", startIso)
+        .gte("created_at", from.toISOString())
+        .lte("created_at", to.toISOString())
         .order("created_at", { ascending: true });
 
       if (qErr) throw qErr;
 
+      const labelFmt = days > 7 ? "MMM d" : "EEE";
       const buckets = new Map<string, { date: string; sent: number; opened: number; clicked: number }>();
-      for (let i = days - 1; i >= 0; i--) {
-        const day = subDays(new Date(), i);
-        buckets.set(format(day, "yyyy-MM-dd"), { date: format(day, "EEE"), sent: 0, opened: 0, clicked: 0 });
-      }
+      eachDayOfInterval({ start: from, end: to }).forEach((day) => {
+        buckets.set(format(day, "yyyy-MM-dd"), { date: format(day, labelFmt), sent: 0, opened: 0, clicked: 0 });
+      });
 
       (data ?? []).forEach((row) => {
         const key = format(new Date(row.created_at as string), "yyyy-MM-dd");
@@ -49,6 +55,7 @@ export const EmailActivityChart = () => {
   const hasData = chartData && chartData.some(d => d.sent > 0 || d.opened > 0 || d.clicked > 0);
   const chartHeight = isMobile ? 180 : 220;
   const tickFontSize = isMobile ? 10 : 12;
+  const tickInterval = chartData && chartData.length > 14 ? Math.ceil(chartData.length / (isMobile ? 4 : 8)) - 1 : 0;
 
   return (
     <motion.div
@@ -60,7 +67,9 @@ export const EmailActivityChart = () => {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
         <div>
           <h2 className="font-display text-base sm:text-lg font-semibold">Email Activity</h2>
-          <p className="text-muted-foreground text-xs sm:text-sm">Last 7 days performance</p>
+          <p className="text-muted-foreground text-xs sm:text-sm">
+            {range ? `${range.label} performance` : "Last 7 days performance"}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] sm:text-xs">
           {[
@@ -106,8 +115,8 @@ export const EmailActivityChart = () => {
               dataKey="date"
               axisLine={false}
               tickLine={false}
-              interval={0}
-              tickFormatter={(v: string) => (isMobile ? v.slice(0, 1) : v)}
+              interval={tickInterval}
+              tickFormatter={(v: string) => (isMobile && days <= 7 ? v.slice(0, 1) : v)}
               tick={{ fill: "hsl(var(--muted-foreground))", fontSize: tickFontSize }}
             />
             <YAxis
