@@ -30,6 +30,25 @@ const describe = (s: Schedule) => {
   return `Monthly on day ${s.day_of_month} at ${time}`;
 };
 
+const nextRunAt = (
+  frequency: "daily" | "weekly" | "monthly",
+  hourUtc: number,
+  dow: number,
+  dom: number,
+) => {
+  const now = new Date();
+  const next = new Date(now);
+  next.setUTCMinutes(0, 0, 0);
+  next.setUTCHours(hourUtc);
+  if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+  if (frequency === "weekly") {
+    while (next.getUTCDay() !== dow) next.setUTCDate(next.getUTCDate() + 1);
+  } else if (frequency === "monthly") {
+    while (next.getUTCDate() !== dom) next.setUTCDate(next.getUTCDate() + 1);
+  }
+  return next.toISOString();
+};
+
 interface Props {
   range: AnalyticsRange;
 }
@@ -91,6 +110,7 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
         day_of_month: Number(dayOfMonth),
         range_days: range.days,
         range_label: range.label,
+        next_run_at: nextRunAt(frequency, Number(hour), Number(dayOfWeek), Number(dayOfMonth)),
       });
       if (error) throw error;
     },
