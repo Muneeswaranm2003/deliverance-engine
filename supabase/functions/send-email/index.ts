@@ -18,6 +18,8 @@ interface EmailRequest {
   campaign_id?: string;
   recipient_id?: string;
   force_smtp_id?: string;
+  /** Only honoured when the caller authenticates with the service role key */
+  internal_user_id?: string;
 }
 
 interface ApiKey {
