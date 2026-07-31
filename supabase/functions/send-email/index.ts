@@ -390,18 +390,25 @@ const handler = async (req: Request): Promise<Response> => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", "")
-    );
+    const emailRequest: EmailRequest = await req.json();
 
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Invalid authentication" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const token = authHeader.replace("Bearer ", "").trim();
+    let user: { id: string } | null = null;
+
+    if (token === supabaseServiceKey && emailRequest.internal_user_id) {
+      // Internal server-to-server call (scheduled jobs)
+      user = { id: emailRequest.internal_user_id };
+    } else {
+      const { data: authData, error: authError } = await supabase.auth.getUser(token);
+      if (authError || !authData?.user) {
+        return new Response(
+          JSON.stringify({ error: "Invalid authentication" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      user = authData.user;
     }
 
-    const emailRequest: EmailRequest = await req.json();
     const recipientEmails = Array.isArray(emailRequest.to) ? emailRequest.to : [emailRequest.to];
 
     // Check suppression list
