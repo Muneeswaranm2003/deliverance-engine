@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      analytics_export_schedules: {
+        Row: {
+          created_at: string
+          day_of_month: number
+          day_of_week: number
+          enabled: boolean
+          frequency: string
+          hour_utc: number
+          id: string
+          last_error: string | null
+          last_run_at: string | null
+          name: string
+          next_run_at: string
+          range_days: number
+          range_label: string
+          recipients: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_month?: number
+          day_of_week?: number
+          enabled?: boolean
+          frequency?: string
+          hour_utc?: number
+          id?: string
+          last_error?: string | null
+          last_run_at?: string | null
+          name: string
+          next_run_at?: string
+          range_days?: number
+          range_label?: string
+          recipients?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day_of_month?: number
+          day_of_week?: number
+          enabled?: boolean
+          frequency?: string
+          hour_utc?: number
+          id?: string
+          last_error?: string | null
+          last_run_at?: string | null
+          name?: string
+          next_run_at?: string
+          range_days?: number
+          range_label?: string
+          recipients?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       api_keys: {
         Row: {
           api_key: string

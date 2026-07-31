@@ -14,6 +14,7 @@ import { EmailActivityChart } from "@/components/dashboard/EmailActivityChart";
 import { RecentCampaigns } from "@/components/dashboard/RecentCampaigns";
 import { DateRangeFilter, makePresetRange, type AnalyticsRange } from "@/components/dashboard/DateRangeFilter";
 import { ExportCsvButton } from "@/components/dashboard/ExportCsvButton";
+import { ScheduledExportsDialog } from "@/components/dashboard/ScheduledExportsDialog";
 
 type Campaign = Tables<"campaigns">;
 
@@ -125,6 +126,7 @@ const Dashboard = () => {
             campaigns={recentCampaigns}
             disabled={statsLoading || campaignsLoading}
           />
+          <ScheduledExportsDialog range={range} />
           <Button variant="hero" onClick={() => navigate("/campaigns/new")} className="gap-2">
             Create Campaign
             <ArrowUpRight className="w-4 h-4" />
