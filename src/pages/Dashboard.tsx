@@ -13,6 +13,7 @@ import { QuickActions } from "@/components/dashboard/QuickActions";
 import { EmailActivityChart } from "@/components/dashboard/EmailActivityChart";
 import { RecentCampaigns } from "@/components/dashboard/RecentCampaigns";
 import { DateRangeFilter, makePresetRange, type AnalyticsRange } from "@/components/dashboard/DateRangeFilter";
+import { ExportCsvButton } from "@/components/dashboard/ExportCsvButton";
 
 type Campaign = Tables<"campaigns">;
 
@@ -118,6 +119,12 @@ const Dashboard = () => {
       action={
         <div className="flex flex-wrap items-center gap-2">
           <DateRangeFilter value={range} onChange={setRange} />
+          <ExportCsvButton
+            range={range}
+            stats={stats}
+            campaigns={recentCampaigns}
+            disabled={statsLoading || campaignsLoading}
+          />
           <Button variant="hero" onClick={() => navigate("/campaigns/new")} className="gap-2">
             Create Campaign
             <ArrowUpRight className="w-4 h-4" />
