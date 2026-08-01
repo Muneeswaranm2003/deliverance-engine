@@ -138,6 +138,9 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
   const [editSubject, setEditSubject] = useState("");
   const [editMessage, setEditMessage] = useState("");
 
+  const createIssues = validateTemplates(subjectTemplate, messageTemplate);
+  const editIssues = validateTemplates(editSubject, editMessage);
+
   const { data: schedules, isLoading } = useQuery({
     queryKey: ["analytics-export-schedules"],
     enabled: open,
@@ -387,11 +390,12 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
                   <p className="text-[11px] text-muted-foreground">
                     Tokens: {TOKENS.join(" ")}
                   </p>
+                  <TemplateIssues errors={editIssues.errors} warnings={editIssues.warnings} />
                   <div className="flex justify-end gap-2">
                     <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
                     <Button
                       size="sm"
-                      disabled={updateTemplateMutation.isPending}
+                      disabled={updateTemplateMutation.isPending || editIssues.errors.length > 0}
                       onClick={() =>
                         updateTemplateMutation.mutate({ id: s.id, subject: editSubject, message: editMessage })
                       }
@@ -501,6 +505,7 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
               />
               <p className="text-[11px] text-muted-foreground">Tokens: {TOKENS.join(" ")}</p>
             </div>
+            <TemplateIssues errors={createIssues.errors} warnings={createIssues.warnings} />
             <p className="text-xs text-muted-foreground">
               Range preset: <span className="text-foreground font-medium">{range.label}</span> —
               each report covers the last {range.days} day{range.days === 1 ? "" : "s"} at send time.
@@ -509,7 +514,7 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
               <Button variant="ghost" onClick={() => setCreating(false)}>Cancel</Button>
               <Button
                 onClick={() => createMutation.mutate()}
-                disabled={createMutation.isPending}
+                disabled={createMutation.isPending || createIssues.errors.length > 0}
                 className="gap-2"
               >
                 {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
