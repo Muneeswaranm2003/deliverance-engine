@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CalendarClock, Plus, Send, Trash2, Loader2, AlertCircle, Pencil } from "lucide-react";
+import { CalendarClock, Plus, Send, Trash2, Loader2, AlertCircle, AlertTriangle, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
