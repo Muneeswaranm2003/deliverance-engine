@@ -32,10 +32,18 @@ const KNOWN_TOKENS = TOKENS.map((t) => t.replace(/[{}\s]/g, ""));
 const MAX_SUBJECT = 200;
 const MAX_MESSAGE = 2000;
 
-/** Validates template strings: returns blocking errors and non-blocking warnings. */
-const validateTemplates = (subject: string, message: string) => {
+export type ValidationSeverity = "strict" | "lenient";
+const SEVERITY_KEY = "analytics-export-validation-severity";
+
+/**
+ * Validates template strings.
+ * In "strict" mode unknown tokens and brace issues block saving; in "lenient"
+ * mode they are surfaced as warnings only. Length limits always block.
+ */
+const validateTemplates = (subject: string, message: string, severity: ValidationSeverity = "strict") => {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const flag = (msg: string) => (severity === "strict" ? errors : warnings).push(msg);
 
   if (subject.length > MAX_SUBJECT) errors.push(`Subject must be under ${MAX_SUBJECT} characters.`);
   if (message.length > MAX_MESSAGE) errors.push(`Message must be under ${MAX_MESSAGE} characters.`);
@@ -45,12 +53,12 @@ const validateTemplates = (subject: string, message: string) => {
     // Unbalanced braces / malformed placeholders
     const opens = (value.match(/\{\{/g) || []).length;
     const closes = (value.match(/\}\}/g) || []).length;
-    if (opens !== closes) errors.push(`${field}: unbalanced {{ }} braces.`);
+    if (opens !== closes) flag(`${field}: unbalanced {{ }} braces.`);
 
     const used = [...value.matchAll(/\{\{\s*([^{}]*?)\s*\}\}/g)].map((m) => m[1]);
     const unknown = [...new Set(used.filter((t) => !KNOWN_TOKENS.includes(t)))];
     if (unknown.length) {
-      errors.push(
+      flag(
         `${field}: unknown token${unknown.length > 1 ? "s" : ""} ${unknown
           .map((t) => `{{${t}}}`)
           .join(", ")}. Available: ${TOKENS.join(" ")}`,
@@ -137,9 +145,18 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editSubject, setEditSubject] = useState("");
   const [editMessage, setEditMessage] = useState("");
+  const [severity, setSeverity] = useState<ValidationSeverity>(() => {
+    const stored = typeof window !== "undefined" ? localStorage.getItem(SEVERITY_KEY) : null;
+    return stored === "lenient" ? "lenient" : "strict";
+  });
 
-  const createIssues = validateTemplates(subjectTemplate, messageTemplate);
-  const editIssues = validateTemplates(editSubject, editMessage);
+  const changeSeverity = (v: ValidationSeverity) => {
+    setSeverity(v);
+    localStorage.setItem(SEVERITY_KEY, v);
+  };
+
+  const createIssues = validateTemplates(subjectTemplate, messageTemplate, severity);
+  const editIssues = validateTemplates(editSubject, editMessage, severity);
 
   const { data: schedules, isLoading } = useQuery({
     queryKey: ["analytics-export-schedules"],
@@ -177,7 +194,7 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
       if (invalid) throw new Error(`"${invalid}" is not a valid email address.`);
       if (!user) throw new Error("You must be signed in.");
 
-      const { errors } = validateTemplates(subjectTemplate, messageTemplate);
+      const { errors } = validateTemplates(subjectTemplate, messageTemplate, severity);
       if (errors.length) throw new Error(errors.join(" "));
 
       const { error } = await supabase.from("analytics_export_schedules").insert({
@@ -218,7 +235,7 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
 
   const updateTemplateMutation = useMutation({
     mutationFn: async ({ id, subject, message }: { id: string; subject: string; message: string }) => {
-      const { errors } = validateTemplates(subject, message);
+      const { errors } = validateTemplates(subject, message, severity);
       if (errors.length) throw new Error(errors.join(" "));
       const { error } = await supabase
         .from("analytics_export_schedules")
@@ -290,6 +307,24 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
             currently selected range ({range.label}).
           </DialogDescription>
         </DialogHeader>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+          <div>
+            <p className="text-xs font-medium">Template validation</p>
+            <p className="text-[11px] text-muted-foreground">
+              {severity === "strict"
+                ? "Unknown tokens and brace issues block saving."
+                : "Unknown tokens and brace issues only show warnings."}
+            </p>
+          </div>
+          <Select value={severity} onValueChange={(v) => changeSeverity(v as ValidationSeverity)}>
+            <SelectTrigger className="w-[170px] h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="strict">Strict — block saving</SelectItem>
+              <SelectItem value="lenient">Lenient — warn only</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
         {/* Existing schedules */}
         <div className="space-y-3">
