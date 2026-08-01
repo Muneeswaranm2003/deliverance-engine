@@ -233,10 +233,8 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
             </p>
           ) : (
             schedules!.map((s) => (
-              <div
-                key={s.id}
-                className="flex flex-wrap items-center gap-3 rounded-lg border border-border/60 bg-card/50 p-3"
-              >
+              <div key={s.id} className="rounded-lg border border-border/60 bg-card/50 p-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="font-medium truncate">{s.name}</p>
@@ -267,6 +265,19 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
                   <Button
                     size="icon"
                     variant="ghost"
+                    title="Edit email template"
+                    onClick={() => {
+                      const next = editingId === s.id ? null : s.id;
+                      setEditingId(next);
+                      setEditSubject(s.subject_template ?? "");
+                      setEditMessage(s.message_template ?? "");
+                    }}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
                     title="Send now"
                     disabled={sendNowMutation.isPending}
                     onClick={() => sendNowMutation.mutate(s.id)}
@@ -286,6 +297,43 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
                     <Trash2 className="w-4 h-4 text-destructive" />
                   </Button>
                 </div>
+              </div>
+              {editingId === s.id && (
+                <div className="mt-3 space-y-3 border-t border-border/60 pt-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Email subject</Label>
+                    <Input
+                      value={editSubject}
+                      onChange={(e) => setEditSubject(e.target.value)}
+                      placeholder={defaultSubject}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Intro message</Label>
+                    <Textarea
+                      value={editMessage}
+                      onChange={(e) => setEditMessage(e.target.value)}
+                      placeholder={`Analytics for the last {{range}}`}
+                      className="min-h-[80px] text-sm"
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Tokens: {TOKENS.join(" ")}
+                  </p>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
+                    <Button
+                      size="sm"
+                      disabled={updateTemplateMutation.isPending}
+                      onClick={() =>
+                        updateTemplateMutation.mutate({ id: s.id, subject: editSubject, message: editMessage })
+                      }
+                    >
+                      Save template
+                    </Button>
+                  </div>
+                </div>
+              )}
               </div>
             ))
           )}
@@ -365,6 +413,26 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sched-subject">Email subject (optional)</Label>
+              <Input
+                id="sched-subject"
+                value={subjectTemplate}
+                onChange={(e) => setSubjectTemplate(e.target.value)}
+                placeholder={defaultSubject}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sched-message">Intro message (optional)</Label>
+              <Textarea
+                id="sched-message"
+                value={messageTemplate}
+                onChange={(e) => setMessageTemplate(e.target.value)}
+                placeholder="Here's your {{range}} performance summary."
+                className="min-h-[80px] text-sm"
+              />
+              <p className="text-[11px] text-muted-foreground">Tokens: {TOKENS.join(" ")}</p>
             </div>
             <p className="text-xs text-muted-foreground">
               Range preset: <span className="text-foreground font-medium">{range.label}</span> —
