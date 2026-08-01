@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CalendarClock, Plus, Send, Trash2, Loader2, AlertCircle, Pencil } from "lucide-react";
+import { CalendarClock, Plus, Send, Trash2, Loader2, AlertCircle, AlertTriangle, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -27,6 +27,68 @@ const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", 
 /** Tokens usable in subject / message templates. */
 const TOKENS = ["{{name}}", "{{range}}", "{{from}}", "{{to}}", "{{campaigns}}", "{{contacts}}", "{{emails_sent}}", "{{open_rate}}"];
 const defaultSubject = "{{name}} — {{range}} analytics";
+
+const KNOWN_TOKENS = TOKENS.map((t) => t.replace(/[{}\s]/g, ""));
+const MAX_SUBJECT = 200;
+const MAX_MESSAGE = 2000;
+
+/** Validates template strings: returns blocking errors and non-blocking warnings. */
+const validateTemplates = (subject: string, message: string) => {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (subject.length > MAX_SUBJECT) errors.push(`Subject must be under ${MAX_SUBJECT} characters.`);
+  if (message.length > MAX_MESSAGE) errors.push(`Message must be under ${MAX_MESSAGE} characters.`);
+
+  const check = (value: string, field: string) => {
+    if (!value.trim()) return;
+    // Unbalanced braces / malformed placeholders
+    const opens = (value.match(/\{\{/g) || []).length;
+    const closes = (value.match(/\}\}/g) || []).length;
+    if (opens !== closes) errors.push(`${field}: unbalanced {{ }} braces.`);
+
+    const used = [...value.matchAll(/\{\{\s*([^{}]*?)\s*\}\}/g)].map((m) => m[1]);
+    const unknown = [...new Set(used.filter((t) => !KNOWN_TOKENS.includes(t)))];
+    if (unknown.length) {
+      errors.push(
+        `${field}: unknown token${unknown.length > 1 ? "s" : ""} ${unknown
+          .map((t) => `{{${t}}}`)
+          .join(", ")}. Available: ${TOKENS.join(" ")}`,
+      );
+    }
+    // Single-brace placeholders won't be replaced
+    if (/(^|[^{])\{[^{}]+\}([^}]|$)/.test(value)) {
+      warnings.push(`${field}: single braces are not replaced — use {{token}}.`);
+    }
+    if (used.length === 0) {
+      warnings.push(`${field}: no tokens used, the same text is sent every time.`);
+    }
+  };
+
+  check(subject, "Subject");
+  check(message, "Message");
+  return { errors, warnings };
+};
+
+const TemplateIssues = ({ errors, warnings }: { errors: string[]; warnings: string[] }) => {
+  if (!errors.length && !warnings.length) return null;
+  return (
+    <div className="space-y-1">
+      {errors.map((e) => (
+        <p key={e} className="text-[11px] text-destructive flex items-start gap-1">
+          <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
+          {e}
+        </p>
+      ))}
+      {warnings.map((w) => (
+        <p key={w} className="text-[11px] text-amber-500 flex items-start gap-1">
+          <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
+          {w}
+        </p>
+      ))}
+    </div>
+  );
+};
 
 const describe = (s: Schedule) => {
   const time = `${String(s.hour_utc).padStart(2, "0")}:00 UTC`;
@@ -76,6 +138,9 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
   const [editSubject, setEditSubject] = useState("");
   const [editMessage, setEditMessage] = useState("");
 
+  const createIssues = validateTemplates(subjectTemplate, messageTemplate);
+  const editIssues = validateTemplates(editSubject, editMessage);
+
   const { data: schedules, isLoading } = useQuery({
     queryKey: ["analytics-export-schedules"],
     enabled: open,
@@ -111,6 +176,9 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
       const invalid = emails.find((e) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e));
       if (invalid) throw new Error(`"${invalid}" is not a valid email address.`);
       if (!user) throw new Error("You must be signed in.");
+
+      const { errors } = validateTemplates(subjectTemplate, messageTemplate);
+      if (errors.length) throw new Error(errors.join(" "));
 
       const { error } = await supabase.from("analytics_export_schedules").insert({
         user_id: user.id,
@@ -150,6 +218,8 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
 
   const updateTemplateMutation = useMutation({
     mutationFn: async ({ id, subject, message }: { id: string; subject: string; message: string }) => {
+      const { errors } = validateTemplates(subject, message);
+      if (errors.length) throw new Error(errors.join(" "));
       const { error } = await supabase
         .from("analytics_export_schedules")
         .update({
@@ -320,11 +390,12 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
                   <p className="text-[11px] text-muted-foreground">
                     Tokens: {TOKENS.join(" ")}
                   </p>
+                  <TemplateIssues errors={editIssues.errors} warnings={editIssues.warnings} />
                   <div className="flex justify-end gap-2">
                     <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
                     <Button
                       size="sm"
-                      disabled={updateTemplateMutation.isPending}
+                      disabled={updateTemplateMutation.isPending || editIssues.errors.length > 0}
                       onClick={() =>
                         updateTemplateMutation.mutate({ id: s.id, subject: editSubject, message: editMessage })
                       }
@@ -434,6 +505,7 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
               />
               <p className="text-[11px] text-muted-foreground">Tokens: {TOKENS.join(" ")}</p>
             </div>
+            <TemplateIssues errors={createIssues.errors} warnings={createIssues.warnings} />
             <p className="text-xs text-muted-foreground">
               Range preset: <span className="text-foreground font-medium">{range.label}</span> —
               each report covers the last {range.days} day{range.days === 1 ? "" : "s"} at send time.
@@ -442,7 +514,7 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
               <Button variant="ghost" onClick={() => setCreating(false)}>Cancel</Button>
               <Button
                 onClick={() => createMutation.mutate()}
-                disabled={createMutation.isPending}
+                disabled={createMutation.isPending || createIssues.errors.length > 0}
                 className="gap-2"
               >
                 {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
