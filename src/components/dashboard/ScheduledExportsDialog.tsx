@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -22,6 +23,10 @@ import type { AnalyticsRange } from "./DateRangeFilter";
 type Schedule = Tables<"analytics_export_schedules">;
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** Tokens usable in subject / message templates. */
+const TOKENS = ["{{name}}", "{{range}}", "{{from}}", "{{to}}", "{{campaigns}}", "{{contacts}}", "{{emails_sent}}", "{{open_rate}}"];
+const defaultSubject = "{{name}} — {{range}} analytics";
 
 const describe = (s: Schedule) => {
   const time = `${String(s.hour_utc).padStart(2, "0")}:00 UTC`;
@@ -65,6 +70,8 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
   const [hour, setHour] = useState("8");
   const [dayOfWeek, setDayOfWeek] = useState("1");
   const [dayOfMonth, setDayOfMonth] = useState("1");
+  const [subjectTemplate, setSubjectTemplate] = useState("");
+  const [messageTemplate, setMessageTemplate] = useState("");
 
   const { data: schedules, isLoading } = useQuery({
     queryKey: ["analytics-export-schedules"],
@@ -86,6 +93,8 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
     setHour("8");
     setDayOfWeek("1");
     setDayOfMonth("1");
+    setSubjectTemplate("");
+    setMessageTemplate("");
   };
 
   const createMutation = useMutation({
@@ -110,6 +119,8 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
         day_of_month: Number(dayOfMonth),
         range_days: range.days,
         range_label: range.label,
+        subject_template: subjectTemplate.trim() || null,
+        message_template: messageTemplate.trim() || null,
         next_run_at: nextRunAt(frequency, Number(hour), Number(dayOfWeek), Number(dayOfMonth)),
       });
       if (error) throw error;
