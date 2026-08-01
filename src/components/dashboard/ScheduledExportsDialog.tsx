@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CalendarClock, Plus, Send, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { CalendarClock, Plus, Send, Trash2, Loader2, AlertCircle, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -72,6 +72,9 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
   const [dayOfMonth, setDayOfMonth] = useState("1");
   const [subjectTemplate, setSubjectTemplate] = useState("");
   const [messageTemplate, setMessageTemplate] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editSubject, setEditSubject] = useState("");
+  const [editMessage, setEditMessage] = useState("");
 
   const { data: schedules, isLoading } = useQuery({
     queryKey: ["analytics-export-schedules"],
@@ -143,6 +146,26 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["analytics-export-schedules"] }),
+  });
+
+  const updateTemplateMutation = useMutation({
+    mutationFn: async ({ id, subject, message }: { id: string; subject: string; message: string }) => {
+      const { error } = await supabase
+        .from("analytics_export_schedules")
+        .update({
+          subject_template: subject.trim() || null,
+          message_template: message.trim() || null,
+        })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Template saved" });
+      setEditingId(null);
+      qc.invalidateQueries({ queryKey: ["analytics-export-schedules"] });
+    },
+    onError: (e: Error) =>
+      toast({ title: "Could not save", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
