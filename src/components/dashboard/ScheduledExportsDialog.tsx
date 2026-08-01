@@ -308,6 +308,24 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
           </DialogDescription>
         </DialogHeader>
 
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+          <div>
+            <p className="text-xs font-medium">Template validation</p>
+            <p className="text-[11px] text-muted-foreground">
+              {severity === "strict"
+                ? "Unknown tokens and brace issues block saving."
+                : "Unknown tokens and brace issues only show warnings."}
+            </p>
+          </div>
+          <Select value={severity} onValueChange={(v) => changeSeverity(v as ValidationSeverity)}>
+            <SelectTrigger className="w-[170px] h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="strict">Strict — block saving</SelectItem>
+              <SelectItem value="lenient">Lenient — warn only</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Existing schedules */}
         <div className="space-y-3">
           {isLoading ? (
