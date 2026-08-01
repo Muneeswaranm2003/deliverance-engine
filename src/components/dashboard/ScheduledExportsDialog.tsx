@@ -32,10 +32,18 @@ const KNOWN_TOKENS = TOKENS.map((t) => t.replace(/[{}\s]/g, ""));
 const MAX_SUBJECT = 200;
 const MAX_MESSAGE = 2000;
 
-/** Validates template strings: returns blocking errors and non-blocking warnings. */
-const validateTemplates = (subject: string, message: string) => {
+export type ValidationSeverity = "strict" | "lenient";
+const SEVERITY_KEY = "analytics-export-validation-severity";
+
+/**
+ * Validates template strings.
+ * In "strict" mode unknown tokens and brace issues block saving; in "lenient"
+ * mode they are surfaced as warnings only. Length limits always block.
+ */
+const validateTemplates = (subject: string, message: string, severity: ValidationSeverity = "strict") => {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const flag = (msg: string) => (severity === "strict" ? errors : warnings).push(msg);
 
   if (subject.length > MAX_SUBJECT) errors.push(`Subject must be under ${MAX_SUBJECT} characters.`);
   if (message.length > MAX_MESSAGE) errors.push(`Message must be under ${MAX_MESSAGE} characters.`);
@@ -45,12 +53,12 @@ const validateTemplates = (subject: string, message: string) => {
     // Unbalanced braces / malformed placeholders
     const opens = (value.match(/\{\{/g) || []).length;
     const closes = (value.match(/\}\}/g) || []).length;
-    if (opens !== closes) errors.push(`${field}: unbalanced {{ }} braces.`);
+    if (opens !== closes) flag(`${field}: unbalanced {{ }} braces.`);
 
     const used = [...value.matchAll(/\{\{\s*([^{}]*?)\s*\}\}/g)].map((m) => m[1]);
     const unknown = [...new Set(used.filter((t) => !KNOWN_TOKENS.includes(t)))];
     if (unknown.length) {
-      errors.push(
+      flag(
         `${field}: unknown token${unknown.length > 1 ? "s" : ""} ${unknown
           .map((t) => `{{${t}}}`)
           .join(", ")}. Available: ${TOKENS.join(" ")}`,
