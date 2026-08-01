@@ -154,6 +154,9 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
       if (invalid) throw new Error(`"${invalid}" is not a valid email address.`);
       if (!user) throw new Error("You must be signed in.");
 
+      const { errors } = validateTemplates(subjectTemplate, messageTemplate);
+      if (errors.length) throw new Error(errors.join(" "));
+
       const { error } = await supabase.from("analytics_export_schedules").insert({
         user_id: user.id,
         name: name.trim(),
@@ -192,6 +195,8 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
 
   const updateTemplateMutation = useMutation({
     mutationFn: async ({ id, subject, message }: { id: string; subject: string; message: string }) => {
+      const { errors } = validateTemplates(subject, message);
+      if (errors.length) throw new Error(errors.join(" "));
       const { error } = await supabase
         .from("analytics_export_schedules")
         .update({
