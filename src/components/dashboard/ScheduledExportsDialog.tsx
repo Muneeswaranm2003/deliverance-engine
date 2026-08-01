@@ -28,6 +28,48 @@ const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", 
 const TOKENS = ["{{name}}", "{{range}}", "{{from}}", "{{to}}", "{{campaigns}}", "{{contacts}}", "{{emails_sent}}", "{{open_rate}}"];
 const defaultSubject = "{{name}} — {{range}} analytics";
 
+const KNOWN_TOKENS = TOKENS.map((t) => t.replace(/[{}\s]/g, ""));
+const MAX_SUBJECT = 200;
+const MAX_MESSAGE = 2000;
+
+/** Validates template strings: returns blocking errors and non-blocking warnings. */
+const validateTemplates = (subject: string, message: string) => {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (subject.length > MAX_SUBJECT) errors.push(`Subject must be under ${MAX_SUBJECT} characters.`);
+  if (message.length > MAX_MESSAGE) errors.push(`Message must be under ${MAX_MESSAGE} characters.`);
+
+  const check = (value: string, field: string) => {
+    if (!value.trim()) return;
+    // Unbalanced braces / malformed placeholders
+    const opens = (value.match(/\{\{/g) || []).length;
+    const closes = (value.match(/\}\}/g) || []).length;
+    if (opens !== closes) errors.push(`${field}: unbalanced {{ }} braces.`);
+
+    const used = [...value.matchAll(/\{\{\s*([^{}]*?)\s*\}\}/g)].map((m) => m[1]);
+    const unknown = [...new Set(used.filter((t) => !KNOWN_TOKENS.includes(t)))];
+    if (unknown.length) {
+      errors.push(
+        `${field}: unknown token${unknown.length > 1 ? "s" : ""} ${unknown
+          .map((t) => `{{${t}}}`)
+          .join(", ")}. Available: ${TOKENS.join(" ")}`,
+      );
+    }
+    // Single-brace placeholders won't be replaced
+    if (/(^|[^{])\{[^{}]+\}([^}]|$)/.test(value)) {
+      warnings.push(`${field}: single braces are not replaced — use {{token}}.`);
+    }
+    if (used.length === 0) {
+      warnings.push(`${field}: no tokens used, the same text is sent every time.`);
+    }
+  };
+
+  check(subject, "Subject");
+  check(message, "Message");
+  return { errors, warnings };
+};
+
 const describe = (s: Schedule) => {
   const time = `${String(s.hour_utc).padStart(2, "0")}:00 UTC`;
   if (s.frequency === "daily") return `Daily at ${time}`;
