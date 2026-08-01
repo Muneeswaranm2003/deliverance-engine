@@ -70,6 +70,26 @@ const validateTemplates = (subject: string, message: string) => {
   return { errors, warnings };
 };
 
+const TemplateIssues = ({ errors, warnings }: { errors: string[]; warnings: string[] }) => {
+  if (!errors.length && !warnings.length) return null;
+  return (
+    <div className="space-y-1">
+      {errors.map((e) => (
+        <p key={e} className="text-[11px] text-destructive flex items-start gap-1">
+          <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
+          {e}
+        </p>
+      ))}
+      {warnings.map((w) => (
+        <p key={w} className="text-[11px] text-amber-500 flex items-start gap-1">
+          <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
+          {w}
+        </p>
+      ))}
+    </div>
+  );
+};
+
 const describe = (s: Schedule) => {
   const time = `${String(s.hour_utc).padStart(2, "0")}:00 UTC`;
   if (s.frequency === "daily") return `Daily at ${time}`;
