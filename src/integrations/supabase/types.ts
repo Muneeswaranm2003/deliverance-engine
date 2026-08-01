@@ -25,11 +25,13 @@ export type Database = {
           id: string
           last_error: string | null
           last_run_at: string | null
+          message_template: string | null
           name: string
           next_run_at: string
           range_days: number
           range_label: string
           recipients: string[]
+          subject_template: string | null
           updated_at: string
           user_id: string
         }
@@ -43,11 +45,13 @@ export type Database = {
           id?: string
           last_error?: string | null
           last_run_at?: string | null
+          message_template?: string | null
           name: string
           next_run_at?: string
           range_days?: number
           range_label?: string
           recipients?: string[]
+          subject_template?: string | null
           updated_at?: string
           user_id: string
         }
@@ -61,11 +65,13 @@ export type Database = {
           id?: string
           last_error?: string | null
           last_run_at?: string | null
+          message_template?: string | null
           name?: string
           next_run_at?: string
           range_days?: number
           range_label?: string
           recipients?: string[]
+          subject_template?: string | null
           updated_at?: string
           user_id?: string
         }

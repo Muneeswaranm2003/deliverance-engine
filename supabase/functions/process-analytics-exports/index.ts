@@ -21,6 +21,8 @@ interface Schedule {
   range_days: number;
   range_label: string;
   enabled: boolean;
+  subject_template?: string | null;
+  message_template?: string | null;
 }
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -34,6 +36,11 @@ const esc = (v: unknown) => {
 const row = (cells: unknown[]) => cells.map(esc).join(",");
 const escHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+const renderTemplate = (tpl: string, vars: Record<string, string | number>) =>
+  tpl.replace(/\{\{\s*(\w+)\s*\}\}/g, (m, key) =>
+    key in vars ? String(vars[key as keyof typeof vars]) : m,
+  );
 
 export function computeNextRun(s: Pick<Schedule, "frequency" | "hour_utc" | "day_of_week" | "day_of_month">, from = new Date()): Date {
   const next = new Date(from);
@@ -79,6 +86,25 @@ async function buildReport(schedule: Schedule) {
   };
   const campaigns = (recentRes.data as any[]) || [];
 
+  const vars = {
+    name: schedule.name,
+    range: schedule.range_label,
+    from: from.toISOString().slice(0, 10),
+    to: to.toISOString().slice(0, 10),
+    campaigns: stats.campaigns,
+    contacts: stats.contacts,
+    emails_sent: stats.emailsSent,
+    open_rate: `${stats.openRate}%`,
+  };
+
+  const subject = schedule.subject_template?.trim()
+    ? renderTemplate(schedule.subject_template, vars)
+    : `${schedule.name} — ${schedule.range_label} analytics`;
+
+  const intro = schedule.message_template?.trim()
+    ? renderTemplate(schedule.message_template, vars)
+    : `Analytics for the last ${schedule.range_label} (${vars.from} → ${vars.to})`;
+
   const lines: string[] = [];
   lines.push(row(["Dashboard export"]));
   lines.push(row(["Range", schedule.range_label]));
@@ -112,7 +138,7 @@ async function buildReport(schedule: Schedule) {
   const html = `<!doctype html><html><body style="background:#ffffff;margin:0;font-family:Arial,Helvetica,sans-serif">
   <div style="max-width:640px;margin:0 auto;padding:24px">
     <h1 style="font-size:20px;color:#0f172a;margin:0 0 4px">${escHtml(schedule.name)}</h1>
-    <p style="color:#64748b;margin:0 0 20px;font-size:13px">Analytics for the last ${escHtml(schedule.range_label)} (${from.toISOString().slice(0, 10)} → ${to.toISOString().slice(0, 10)})</p>
+    <p style="color:#64748b;margin:0 0 20px;font-size:13px;white-space:pre-wrap">${escHtml(intro)}</p>
     <table style="width:100%;border-collapse:collapse;font-size:14px">
       ${metricRow("Campaigns", stats.campaigns)}
       ${metricRow("New Contacts", stats.contacts)}
@@ -126,7 +152,7 @@ async function buildReport(schedule: Schedule) {
     <p style="color:#94a3b8;font-size:11px;margin-top:16px">Copy the block above into a .csv file for spreadsheet analysis.</p>
   </div></body></html>`;
 
-  return { html, csv, stats, subject: `${schedule.name} — ${schedule.range_label} analytics` };
+  return { html, csv, stats, subject };
 }
 
 async function runSchedule(schedule: Schedule) {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CalendarClock, Plus, Send, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { CalendarClock, Plus, Send, Trash2, Loader2, AlertCircle, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -22,6 +23,10 @@ import type { AnalyticsRange } from "./DateRangeFilter";
 type Schedule = Tables<"analytics_export_schedules">;
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** Tokens usable in subject / message templates. */
+const TOKENS = ["{{name}}", "{{range}}", "{{from}}", "{{to}}", "{{campaigns}}", "{{contacts}}", "{{emails_sent}}", "{{open_rate}}"];
+const defaultSubject = "{{name}} — {{range}} analytics";
 
 const describe = (s: Schedule) => {
   const time = `${String(s.hour_utc).padStart(2, "0")}:00 UTC`;
@@ -65,6 +70,11 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
   const [hour, setHour] = useState("8");
   const [dayOfWeek, setDayOfWeek] = useState("1");
   const [dayOfMonth, setDayOfMonth] = useState("1");
+  const [subjectTemplate, setSubjectTemplate] = useState("");
+  const [messageTemplate, setMessageTemplate] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editSubject, setEditSubject] = useState("");
+  const [editMessage, setEditMessage] = useState("");
 
   const { data: schedules, isLoading } = useQuery({
     queryKey: ["analytics-export-schedules"],
@@ -86,6 +96,8 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
     setHour("8");
     setDayOfWeek("1");
     setDayOfMonth("1");
+    setSubjectTemplate("");
+    setMessageTemplate("");
   };
 
   const createMutation = useMutation({
@@ -110,6 +122,8 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
         day_of_month: Number(dayOfMonth),
         range_days: range.days,
         range_label: range.label,
+        subject_template: subjectTemplate.trim() || null,
+        message_template: messageTemplate.trim() || null,
         next_run_at: nextRunAt(frequency, Number(hour), Number(dayOfWeek), Number(dayOfMonth)),
       });
       if (error) throw error;
@@ -132,6 +146,26 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["analytics-export-schedules"] }),
+  });
+
+  const updateTemplateMutation = useMutation({
+    mutationFn: async ({ id, subject, message }: { id: string; subject: string; message: string }) => {
+      const { error } = await supabase
+        .from("analytics_export_schedules")
+        .update({
+          subject_template: subject.trim() || null,
+          message_template: message.trim() || null,
+        })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Template saved" });
+      setEditingId(null);
+      qc.invalidateQueries({ queryKey: ["analytics-export-schedules"] });
+    },
+    onError: (e: Error) =>
+      toast({ title: "Could not save", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -199,10 +233,8 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
             </p>
           ) : (
             schedules!.map((s) => (
-              <div
-                key={s.id}
-                className="flex flex-wrap items-center gap-3 rounded-lg border border-border/60 bg-card/50 p-3"
-              >
+              <div key={s.id} className="rounded-lg border border-border/60 bg-card/50 p-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="font-medium truncate">{s.name}</p>
@@ -233,6 +265,19 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
                   <Button
                     size="icon"
                     variant="ghost"
+                    title="Edit email template"
+                    onClick={() => {
+                      const next = editingId === s.id ? null : s.id;
+                      setEditingId(next);
+                      setEditSubject(s.subject_template ?? "");
+                      setEditMessage(s.message_template ?? "");
+                    }}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
                     title="Send now"
                     disabled={sendNowMutation.isPending}
                     onClick={() => sendNowMutation.mutate(s.id)}
@@ -252,6 +297,43 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
                     <Trash2 className="w-4 h-4 text-destructive" />
                   </Button>
                 </div>
+              </div>
+              {editingId === s.id && (
+                <div className="mt-3 space-y-3 border-t border-border/60 pt-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Email subject</Label>
+                    <Input
+                      value={editSubject}
+                      onChange={(e) => setEditSubject(e.target.value)}
+                      placeholder={defaultSubject}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Intro message</Label>
+                    <Textarea
+                      value={editMessage}
+                      onChange={(e) => setEditMessage(e.target.value)}
+                      placeholder={`Analytics for the last {{range}}`}
+                      className="min-h-[80px] text-sm"
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Tokens: {TOKENS.join(" ")}
+                  </p>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
+                    <Button
+                      size="sm"
+                      disabled={updateTemplateMutation.isPending}
+                      onClick={() =>
+                        updateTemplateMutation.mutate({ id: s.id, subject: editSubject, message: editMessage })
+                      }
+                    >
+                      Save template
+                    </Button>
+                  </div>
+                </div>
+              )}
               </div>
             ))
           )}
@@ -331,6 +413,26 @@ export const ScheduledExportsDialog = ({ range }: Props) => {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sched-subject">Email subject (optional)</Label>
+              <Input
+                id="sched-subject"
+                value={subjectTemplate}
+                onChange={(e) => setSubjectTemplate(e.target.value)}
+                placeholder={defaultSubject}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sched-message">Intro message (optional)</Label>
+              <Textarea
+                id="sched-message"
+                value={messageTemplate}
+                onChange={(e) => setMessageTemplate(e.target.value)}
+                placeholder="Here's your {{range}} performance summary."
+                className="min-h-[80px] text-sm"
+              />
+              <p className="text-[11px] text-muted-foreground">Tokens: {TOKENS.join(" ")}</p>
             </div>
             <p className="text-xs text-muted-foreground">
               Range preset: <span className="text-foreground font-medium">{range.label}</span> —
