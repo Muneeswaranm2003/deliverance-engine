@@ -144,8 +144,11 @@ interface DnsRecord {
 function eeDnsRecords(d: any): DnsRecord[] {
   const domain: string = d?.Domain || "";
   const recs: DnsRecord[] = [];
+  const dkimVerified = !!d?.Dkim;
 
-  // DKIM — Elastic Email returns the exact record to publish.
+  // DKIM — Elastic Email returns the exact record to publish for unverified
+  // domains. For already-verified domains it omits the key, so we show a note
+  // instead of a misleading placeholder.
   const dkim = d?.DKIMRecord;
   if (dkim && (dkim.HostName || dkim.Selector) && dkim.PublicKey) {
     recs.push({
@@ -155,12 +158,20 @@ function eeDnsRecords(d: any): DnsRecord[] {
       ttl: 1800,
       note: "DKIM signing record",
     });
-  } else {
-    // Fallback selector used by Elastic Email.
+  } else if (dkimVerified) {
     recs.push({
       type: "TXT",
       host: `api._domainkey.${domain}`,
-      value: "v=DKIM1; k=rsa; p=<your-api-key-DKIM-public-key>",
+      value: "✓ DKIM already verified on Elastic Email",
+      ttl: 1800,
+      note: "No action needed",
+    });
+  } else {
+    // Fallback selector used by Elastic Email (new / unverified domain).
+    recs.push({
+      type: "TXT",
+      host: `api._domainkey.${domain}`,
+      value: "v=DKIM1; k=rsa; p=<copy from Elastic Email dashboard>",
       ttl: 1800,
       note: "DKIM — open the domain in Elastic Email to copy the exact public key",
     });
