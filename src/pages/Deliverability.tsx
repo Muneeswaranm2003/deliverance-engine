@@ -74,6 +74,16 @@ const Deliverability = () => {
             </div>
           </TabsContent>
 
+          <TabsContent value="domains" className="space-y-4">
+            <div className="glass rounded-xl p-6">
+              {isLoading ? null : canManageDeliverability ? (
+                <ProviderDomainsManager />
+              ) : (
+                <RestrictedView feature="platform domains" />
+              )}
+            </div>
+          </TabsContent>
+
           <TabsContent value="ses" className="space-y-4">
             <div className="glass rounded-xl p-6">
               {isLoading ? null : canManageDeliverability ? (
