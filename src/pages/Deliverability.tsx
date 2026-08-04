@@ -2,10 +2,11 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SmtpServersManager } from "@/components/deliverability/SmtpServersManager";
 import { SesDomainsManager } from "@/components/deliverability/SesDomainsManager";
+import { ProviderDomainsManager } from "@/components/deliverability/ProviderDomainsManager";
 import { ApiKeysManager } from "@/components/settings/ApiKeysManager";
 import { IpPoolsManager } from "@/components/settings/IpPoolsManager";
 import { UserRolesManager } from "@/components/deliverability/UserRolesManager";
-import { Server, ShieldCheck, Globe, GitBranch, Key, Network, Lock, Users, Cloud } from "lucide-react";
+import { Server, ShieldCheck, Globe, GitBranch, Key, Network, Lock, Users, Cloud, Layers } from "lucide-react";
 import { motion } from "framer-motion";
 import { useUserRoles } from "@/hooks/useUserRole";
 import { Badge } from "@/components/ui/badge";
@@ -35,9 +36,12 @@ const Deliverability = () => {
         transition={{ duration: 0.3 }}
       >
         <Tabs defaultValue="smtp" className="space-y-6">
-          <TabsList className="grid w-full max-w-5xl grid-cols-8">
+          <TabsList className="grid w-full max-w-5xl grid-cols-9">
             <TabsTrigger value="smtp" className="gap-2">
               <Server className="w-4 h-4" /> SMTP
+            </TabsTrigger>
+            <TabsTrigger value="domains" className="gap-2">
+              <Layers className="w-4 h-4" /> Domains
             </TabsTrigger>
             <TabsTrigger value="ses" className="gap-2">
               <Cloud className="w-4 h-4" /> AWS SES
@@ -67,6 +71,16 @@ const Deliverability = () => {
           <TabsContent value="smtp" className="space-y-4">
             <div className="glass rounded-xl p-6">
               <SmtpServersManager />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="domains" className="space-y-4">
+            <div className="glass rounded-xl p-6">
+              {isLoading ? null : canManageDeliverability ? (
+                <ProviderDomainsManager />
+              ) : (
+                <RestrictedView feature="platform domains" />
+              )}
             </div>
           </TabsContent>
 
