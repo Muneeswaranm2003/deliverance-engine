@@ -36,9 +36,12 @@ const Deliverability = () => {
         transition={{ duration: 0.3 }}
       >
         <Tabs defaultValue="smtp" className="space-y-6">
-          <TabsList className="grid w-full max-w-5xl grid-cols-8">
+          <TabsList className="grid w-full max-w-5xl grid-cols-9">
             <TabsTrigger value="smtp" className="gap-2">
               <Server className="w-4 h-4" /> SMTP
+            </TabsTrigger>
+            <TabsTrigger value="domains" className="gap-2">
+              <Layers className="w-4 h-4" /> Domains
             </TabsTrigger>
             <TabsTrigger value="ses" className="gap-2">
               <Cloud className="w-4 h-4" /> AWS SES
