@@ -448,6 +448,8 @@ const CampaignCreate = () => {
                       className="bg-secondary/50"
                     />
                   </div>
+
+                  <VerifiedSenderPicker senderEmail={senderEmail} onSelect={setSenderEmail} />
                 </div>
               </div>
             )}
