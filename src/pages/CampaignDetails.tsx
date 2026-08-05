@@ -128,6 +128,8 @@ const CampaignDetails = () => {
   const clicked = emailLogs?.filter((l) => l.status === "clicked").length || 0;
   const bounced = emailLogs?.filter((l) => l.status === "bounced").length || 0;
   const failed = emailLogs?.filter((l) => l.status === "failed").length || 0;
+  const pending = emailLogs?.filter((l) => l.status === "pending").length || 0;
+  const unopened = Math.max(delivered - opened, 0);
 
   const deliverRate = totalSent > 0 ? ((delivered / totalSent) * 100).toFixed(1) : "0";
   const openRate = delivered > 0 ? ((opened / delivered) * 100).toFixed(1) : "0";
@@ -135,11 +137,55 @@ const CampaignDetails = () => {
   const bounceRate = totalSent > 0 ? ((bounced / totalSent) * 100).toFixed(1) : "0";
 
   const stats = [
-    { label: "Delivered", value: delivered, rate: `${deliverRate}%`, icon: CheckCircle2, color: "text-emerald-400" },
-    { label: "Opened", value: opened, rate: `${openRate}%`, icon: Eye, color: "text-primary" },
-    { label: "Clicked", value: clicked, rate: `${clickRate}%`, icon: MousePointerClick, color: "text-violet-400" },
-    { label: "Bounced", value: bounced, rate: `${bounceRate}%`, icon: AlertTriangle, color: "text-yellow-400" },
+    {
+      label: "Delivered",
+      value: delivered,
+      rate: `${deliverRate}%`,
+      hint: `of ${totalSent} sent`,
+      pct: Number(deliverRate),
+      icon: CheckCircle2,
+      color: "text-emerald-400",
+      bar: "bg-emerald-400",
+    },
+    {
+      label: "Opened",
+      value: opened,
+      rate: `${openRate}%`,
+      hint: `${unopened} unopened`,
+      pct: Number(openRate),
+      icon: Eye,
+      color: "text-primary",
+      bar: "bg-primary",
+    },
+    {
+      label: "Clicked",
+      value: clicked,
+      rate: `${clickRate}%`,
+      hint: "of opened emails",
+      pct: Number(clickRate),
+      icon: MousePointerClick,
+      color: "text-violet-400",
+      bar: "bg-violet-400",
+    },
+    {
+      label: "Bounced",
+      value: bounced,
+      rate: `${bounceRate}%`,
+      hint: failed > 0 ? `${failed} failed` : "of total sent",
+      pct: Number(bounceRate),
+      icon: AlertTriangle,
+      color: "text-yellow-400",
+      bar: "bg-yellow-400",
+    },
   ];
+
+  const funnel = [
+    { label: "Sent", value: totalSent, bar: "bg-sky-400" },
+    { label: "Delivered", value: delivered, bar: "bg-emerald-400" },
+    { label: "Opened", value: opened, bar: "bg-primary" },
+    { label: "Clicked", value: clicked, bar: "bg-violet-400" },
+  ];
+  const funnelMax = Math.max(...funnel.map((f) => f.value), 1);
 
   const fade = {
     initial: { opacity: 0, y: 16 },
@@ -201,10 +247,57 @@ const CampaignDetails = () => {
                   <span className="text-2xl font-bold font-display">{stat.value}</span>
                   <span className={`text-sm font-medium ${stat.color} mb-0.5`}>{stat.rate}</span>
                 </div>
+                <div className="mt-3 h-1.5 w-full rounded-full bg-secondary/70 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${stat.bar} transition-all`}
+                    style={{ width: `${Math.min(Math.max(stat.pct, 0), 100)}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">{stat.hint}</p>
               </CardContent>
             </Card>
           );
         })}
+      </motion.div>
+
+      {/* Engagement funnel */}
+      <motion.div {...fade} transition={{ delay: 0.08 }} className="mb-8">
+        <Card className="glass border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-primary" />
+              Engagement Funnel
+              {pending > 0 && (
+                <Badge variant="secondary" className="ml-auto text-[10px]">{pending} pending</Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {totalSent === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                No send activity yet — metrics appear once this campaign starts sending.
+              </p>
+            ) : (
+              funnel.map((f) => (
+                <div key={f.label} className="flex items-center gap-3">
+                  <span className="w-20 shrink-0 text-xs text-muted-foreground">{f.label}</span>
+                  <div className="flex-1 h-2.5 rounded-full bg-secondary/70 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${f.bar} transition-all`}
+                      style={{ width: `${(f.value / funnelMax) * 100}%` }}
+                    />
+                  </div>
+                  <span className="w-24 shrink-0 text-right text-xs">
+                    <span className="font-semibold">{f.value}</span>{" "}
+                    <span className="text-muted-foreground">
+                      {totalSent > 0 ? `${((f.value / totalSent) * 100).toFixed(0)}%` : "0%"}
+                    </span>
+                  </span>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
       </motion.div>
 
       <div className="grid lg:grid-cols-3 gap-6">
