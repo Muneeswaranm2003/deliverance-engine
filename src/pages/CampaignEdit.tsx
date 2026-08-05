@@ -13,6 +13,7 @@ import EmailTemplateEditor from "@/components/campaigns/EmailTemplateEditor";
 import RecipientSelector from "@/components/campaigns/RecipientSelector";
 import SchedulingOptions from "@/components/campaigns/SchedulingOptions";
 import VerifiedSenderPicker from "@/components/campaigns/VerifiedSenderPicker";
+import SenderABTesting, { type SenderVariant } from "@/components/campaigns/SenderABTesting";
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -53,6 +54,8 @@ const CampaignEdit = () => {
   const [campaignName, setCampaignName] = useState("");
   const [senderName, setSenderName] = useState("");
   const [senderEmail, setSenderEmail] = useState("");
+  const [abEnabled, setAbEnabled] = useState(false);
+  const [abVariants, setAbVariants] = useState<SenderVariant[]>([]);
 
   // Email content
   const [subject, setSubject] = useState("");
@@ -413,6 +416,14 @@ const CampaignEdit = () => {
                   </div>
 
                   <VerifiedSenderPicker senderEmail={senderEmail} onSelect={setSenderEmail} />
+
+                  <SenderABTesting
+                    enabled={abEnabled}
+                    onEnabledChange={setAbEnabled}
+                    variants={abVariants}
+                    onVariantsChange={setAbVariants}
+                    onApplyRecommended={setSenderEmail}
+                  />
                 </div>
               </div>
             )}
