@@ -274,14 +274,9 @@ const CampaignCreate = () => {
                   subject: personalizedSubject,
                   html: `<pre style="font-family: sans-serif; white-space: pre-wrap;">${personalizedContent}</pre>`,
                   text: personalizedContent,
-                  from_email: senderEmail,
+                  from_email: variant?.email || senderEmail,
                   from_name: senderName,
-                  ...(variant
-                    ? {
-                        from_email: variant.email,
-                        ...(variant.ipPoolId ? { ip_pool_id: variant.ipPoolId } : {}),
-                      }
-                    : {}),
+                  ...(variant?.ipPoolId ? { ip_pool_id: variant.ipPoolId } : {}),
                   campaign_id: campaign.id,
                 },
               });
