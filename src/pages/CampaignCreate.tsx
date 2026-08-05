@@ -456,6 +456,14 @@ const CampaignCreate = () => {
                   </div>
 
                   <VerifiedSenderPicker senderEmail={senderEmail} onSelect={setSenderEmail} />
+
+                  <SenderABTesting
+                    enabled={abEnabled}
+                    onEnabledChange={setAbEnabled}
+                    variants={abVariants}
+                    onVariantsChange={setAbVariants}
+                    onApplyRecommended={setSenderEmail}
+                  />
                 </div>
               </div>
             )}
