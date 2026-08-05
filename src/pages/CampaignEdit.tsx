@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import EmailTemplateEditor from "@/components/campaigns/EmailTemplateEditor";
 import RecipientSelector from "@/components/campaigns/RecipientSelector";
 import SchedulingOptions from "@/components/campaigns/SchedulingOptions";
+import VerifiedSenderPicker from "@/components/campaigns/VerifiedSenderPicker";
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -410,6 +411,8 @@ const CampaignEdit = () => {
                       />
                     </div>
                   </div>
+
+                  <VerifiedSenderPicker senderEmail={senderEmail} onSelect={setSenderEmail} />
                 </div>
               </div>
             )}

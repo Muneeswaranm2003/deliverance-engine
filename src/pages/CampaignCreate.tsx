@@ -12,6 +12,7 @@ import EmailTemplateEditor from "@/components/campaigns/EmailTemplateEditor";
 import RecipientSelector from "@/components/campaigns/RecipientSelector";
 import TimezoneDistribution from "@/components/campaigns/TimezoneDistribution";
 import SchedulingOptions from "@/components/campaigns/SchedulingOptions";
+import VerifiedSenderPicker from "@/components/campaigns/VerifiedSenderPicker";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -448,6 +449,8 @@ const CampaignCreate = () => {
                       className="bg-secondary/50"
                     />
                   </div>
+
+                  <VerifiedSenderPicker senderEmail={senderEmail} onSelect={setSenderEmail} />
                 </div>
               </div>
             )}
