@@ -250,7 +250,6 @@ const CampaignCreate = () => {
         const accessToken = session?.session?.access_token;
 
         if (accessToken) {
-        if (accessToken) {
           let sentCount = 0;
           const rotation = abEnabled && abVariants.length > 0 ? abVariants : null;
 
@@ -277,6 +276,12 @@ const CampaignCreate = () => {
                   text: personalizedContent,
                   from_email: senderEmail,
                   from_name: senderName,
+                  ...(variant
+                    ? {
+                        from_email: variant.email,
+                        ...(variant.ipPoolId ? { ip_pool_id: variant.ipPoolId } : {}),
+                      }
+                    : {}),
                   campaign_id: campaign.id,
                 },
               });
