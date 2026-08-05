@@ -13,6 +13,7 @@ import RecipientSelector from "@/components/campaigns/RecipientSelector";
 import TimezoneDistribution from "@/components/campaigns/TimezoneDistribution";
 import SchedulingOptions from "@/components/campaigns/SchedulingOptions";
 import VerifiedSenderPicker from "@/components/campaigns/VerifiedSenderPicker";
+import SenderABTesting, { type SenderVariant } from "@/components/campaigns/SenderABTesting";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -129,7 +130,8 @@ const CampaignCreate = () => {
   const [campaignName, setCampaignName] = useState("");
   const [senderName, setSenderName] = useState("");
   const [senderEmail, setSenderEmail] = useState("");
-  
+  const [abEnabled, setAbEnabled] = useState(false);
+  const [abVariants, setAbVariants] = useState<SenderVariant[]>([]);
 
   // Email content
   const [subject, setSubject] = useState("");
@@ -248,9 +250,12 @@ const CampaignCreate = () => {
         const accessToken = session?.session?.access_token;
 
         if (accessToken) {
+        if (accessToken) {
           let sentCount = 0;
-          
-          for (const recipient of recipients) {
+          const rotation = abEnabled && abVariants.length > 0 ? abVariants : null;
+
+          for (const [index, recipient] of recipients.entries()) {
+            const variant = rotation ? rotation[index % rotation.length] : null;
             // Replace template variables in content and subject
             const personalizedContent = content
               .replace(/\{\{firstName\}\}/g, recipient.firstName || "")
