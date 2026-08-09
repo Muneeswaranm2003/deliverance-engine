@@ -8,6 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
+
+const safeFormat = (value: string | null | undefined, pattern: string) => {
+  if (!value) return "—";
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? "—" : format(d, pattern);
+};
 import {
   Send,
   Plus,
@@ -212,12 +218,12 @@ const Campaigns = () => {
                       </span>
                       <span className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5" />
-                        {format(new Date(campaign.created_at), "MMM d, yyyy")}
+                        {safeFormat(campaign.created_at, "MMM d, yyyy")}
                       </span>
                       {campaign.scheduled_at && (
                         <span className="flex items-center gap-1.5 text-primary">
                           <Clock className="w-3.5 h-3.5" />
-                          Scheduled: {format(new Date(campaign.scheduled_at), "MMM d, h:mm a")}
+                          Scheduled: {safeFormat(campaign.scheduled_at, "MMM d, h:mm a")}
                         </span>
                       )}
                     </div>
