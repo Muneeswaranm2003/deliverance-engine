@@ -116,8 +116,8 @@ const CampaignEdit = () => {
       setBatchSize(campaign.batch_size || 50);
       setBatchDelay(campaign.batch_delay || 60);
       
-      if (campaign.scheduled_at) {
-        const date = new Date(campaign.scheduled_at);
+      const date = toValidDate(campaign.scheduled_at);
+      if (date) {
         setScheduledDate(date);
         setScheduledTime(date.toTimeString().slice(0, 5));
       }
@@ -205,9 +205,10 @@ const CampaignEdit = () => {
           content,
           status: scheduleType === "now" ? "sending" : "scheduled",
           schedule_type: scheduleType,
-          scheduled_at: scheduleType === "later" && scheduledDate 
-            ? new Date(`${scheduledDate.toISOString().split('T')[0]}T${scheduledTime}:00`).toISOString()
-            : null,
+          scheduled_at:
+            scheduleType === "later"
+              ? buildScheduledAt(scheduledDate, scheduledTime)
+              : null,
           timezone,
           batch_size: batchSize,
           batch_delay: batchDelay,
