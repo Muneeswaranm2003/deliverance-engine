@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
-import { format } from "date-fns";
+import { safeFormat } from "@/lib/dates";
 import {
   ArrowLeft,
   Pencil,
@@ -317,11 +317,11 @@ const CampaignDetails = () => {
               <Separator className="bg-border/50" />
               <InfoRow icon={Send} label="Sent" value={`${campaign.sent_count || 0}`} />
               <Separator className="bg-border/50" />
-              <InfoRow icon={Calendar} label="Created" value={format(new Date(campaign.created_at), "MMM d, yyyy 'at' h:mm a")} />
+              <InfoRow icon={Calendar} label="Created" value={safeFormat(campaign.created_at, "MMM d, yyyy 'at' h:mm a")} />
               {campaign.scheduled_at && (
                 <>
                   <Separator className="bg-border/50" />
-                  <InfoRow icon={Clock} label="Scheduled" value={format(new Date(campaign.scheduled_at), "MMM d, yyyy 'at' h:mm a")} />
+                  <InfoRow icon={Clock} label="Scheduled" value={safeFormat(campaign.scheduled_at, "MMM d, yyyy 'at' h:mm a")} />
                 </>
               )}
               {campaign.timezone && (
@@ -446,7 +446,7 @@ const CampaignDetails = () => {
                           {log.status}
                         </Badge>
                         <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {format(new Date(log.created_at), "h:mm a")}
+                          {safeFormat(log.created_at, "h:mm a")}
                         </p>
                       </div>
                     </div>
