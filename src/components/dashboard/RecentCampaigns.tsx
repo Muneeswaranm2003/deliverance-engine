@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { safeFormat } from "@/lib/dates";
 import {
   Send,
   Loader2,
@@ -113,7 +113,7 @@ export const RecentCampaigns = ({ campaigns, isLoading }: RecentCampaignsProps) 
                     {status.label}
                   </Badge>
                   <span className="text-sm text-muted-foreground hidden sm:block">
-                    {format(new Date(campaign.created_at), "MMM d")}
+                    {safeFormat(campaign.created_at, "MMM d")}
                   </span>
                   <ArrowUpRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
                 </div>
