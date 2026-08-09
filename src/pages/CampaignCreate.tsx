@@ -214,9 +214,10 @@ const CampaignCreate = () => {
           content,
           status: scheduleType === "now" ? "sending" : "scheduled",
           schedule_type: scheduleType,
-          scheduled_at: scheduleType === "later" && scheduledDate 
-            ? new Date(`${scheduledDate.toISOString().split('T')[0]}T${scheduledTime}:00`).toISOString()
-            : null,
+          scheduled_at:
+            scheduleType === "later"
+              ? buildScheduledAt(scheduledDate, scheduledTime)
+              : null,
           timezone,
           batch_size: batchSize,
           batch_delay: batchDelay,
