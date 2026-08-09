@@ -7,13 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion } from "framer-motion";
-import { format } from "date-fns";
-
-const safeFormat = (value: string | null | undefined, pattern: string) => {
-  if (!value) return "—";
-  const d = new Date(value);
-  return isNaN(d.getTime()) ? "—" : format(d, pattern);
-};
+import { safeFormat } from "@/lib/dates";
 import {
   Send,
   Plus,
