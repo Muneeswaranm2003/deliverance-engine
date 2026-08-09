@@ -21,3 +21,20 @@ export const safeFormat = (
 /** ISO string for a valid timestamp, otherwise null (safe for DB writes). */
 export const safeIso = (value: unknown): string | null =>
   toValidDate(value)?.toISOString() ?? null;
+
+/**
+ * Combine a picked date + "HH:mm" time into an ISO timestamp.
+ * Returns null when either part is missing or invalid.
+ */
+export const buildScheduledAt = (
+  date: Date | null | undefined,
+  time: string | null | undefined,
+): string | null => {
+  const base = toValidDate(date);
+  if (!base) return null;
+  const t = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(time ?? "");
+  if (!t) return null;
+  const combined = new Date(base);
+  combined.setHours(Number(t[1]), Number(t[2]), 0, 0);
+  return Number.isNaN(combined.getTime()) ? null : combined.toISOString();
+};
