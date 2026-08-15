@@ -300,6 +300,10 @@ const CampaignDetails = () => {
         </Card>
       </motion.div>
 
+      <motion.div {...fade} transition={{ delay: 0.08 }} className="mb-6">
+        <CampaignSendQueue campaignId={id!} defaultFromName={campaign.sender_name} />
+      </motion.div>
+
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Left column — Campaign info */}
         <motion.div {...fade} transition={{ delay: 0.1 }} className="lg:col-span-1 space-y-6">
