@@ -275,6 +275,96 @@ export type Database = {
           },
         ]
       }
+      campaign_send_jobs: {
+        Row: {
+          attempts: number
+          campaign_id: string
+          company: string | null
+          created_at: string
+          email: string
+          first_name: string | null
+          from_email: string
+          from_name: string
+          id: string
+          last_error: string | null
+          last_name: string | null
+          locked_at: string | null
+          max_attempts: number
+          provider: string | null
+          provider_message_id: string | null
+          recipient_id: string | null
+          run_at: string
+          sender_domain: string | null
+          sent_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          campaign_id: string
+          company?: string | null
+          created_at?: string
+          email: string
+          first_name?: string | null
+          from_email: string
+          from_name: string
+          id?: string
+          last_error?: string | null
+          last_name?: string | null
+          locked_at?: string | null
+          max_attempts?: number
+          provider?: string | null
+          provider_message_id?: string | null
+          recipient_id?: string | null
+          run_at?: string
+          sender_domain?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          campaign_id?: string
+          company?: string | null
+          created_at?: string
+          email?: string
+          first_name?: string | null
+          from_email?: string
+          from_name?: string
+          id?: string
+          last_error?: string | null
+          last_name?: string | null
+          locked_at?: string | null
+          max_attempts?: number
+          provider?: string | null
+          provider_message_id?: string | null
+          recipient_id?: string | null
+          run_at?: string
+          sender_domain?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_send_jobs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_send_jobs_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_recipients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_sender_domains: {
         Row: {
           campaign_id: string
