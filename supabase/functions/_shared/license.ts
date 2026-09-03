@@ -45,9 +45,9 @@ export function isNonProductionDomain(domain: string): boolean {
     d.endsWith(".example") ||
     /^staging\./.test(d) ||
     /^dev\./.test(d) ||
-    /^test\./.test(d) ||
-    /^\d+\.\d+\.\d+\.\d+$/.test(d) === false && false
+    /^test\./.test(d)
   );
+
 }
 
 export function cleanDomain(domain: string): string {
