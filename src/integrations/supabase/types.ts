@@ -890,6 +890,274 @@ export type Database = {
         }
         Relationships: []
       }
+      license_activations: {
+        Row: {
+          activated_at: string
+          app_version: string | null
+          created_at: string
+          deactivated_at: string | null
+          domain: string
+          fingerprint: string | null
+          id: string
+          ip_address: string | null
+          is_production: boolean
+          last_seen_at: string
+          license_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          activated_at?: string
+          app_version?: string | null
+          created_at?: string
+          deactivated_at?: string | null
+          domain: string
+          fingerprint?: string | null
+          id?: string
+          ip_address?: string | null
+          is_production?: boolean
+          last_seen_at?: string
+          license_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          activated_at?: string
+          app_version?: string | null
+          created_at?: string
+          deactivated_at?: string | null
+          domain?: string
+          fingerprint?: string | null
+          id?: string
+          ip_address?: string | null
+          is_production?: boolean
+          last_seen_at?: string
+          license_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "license_activations_license_id_fkey"
+            columns: ["license_id"]
+            isOneToOne: false
+            referencedRelation: "licenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      license_leads: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string
+          id: string
+          installs_needed: string | null
+          message: string | null
+          name: string
+          status: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          installs_needed?: string | null
+          message?: string | null
+          name: string
+          status?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          installs_needed?: string | null
+          message?: string | null
+          name?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      license_products: {
+        Row: {
+          created_at: string
+          currency: string
+          description: string | null
+          id: string
+          install_limit: number | null
+          is_active: boolean
+          is_custom: boolean
+          name: string
+          price_cents: number
+          slug: string
+          sort_order: number
+          support_months: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          install_limit?: number | null
+          is_active?: boolean
+          is_custom?: boolean
+          name: string
+          price_cents?: number
+          slug: string
+          sort_order?: number
+          support_months?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          description?: string | null
+          id?: string
+          install_limit?: number | null
+          is_active?: boolean
+          is_custom?: boolean
+          name?: string
+          price_cents?: number
+          slug?: string
+          sort_order?: number
+          support_months?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      license_purchases: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          currency: string
+          customer_email: string
+          customer_name: string | null
+          id: string
+          license_id: string | null
+          product_slug: string
+          raw_payload: Json | null
+          source: string
+          status: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+        }
+        Insert: {
+          amount_cents?: number
+          created_at?: string
+          currency?: string
+          customer_email: string
+          customer_name?: string | null
+          id?: string
+          license_id?: string | null
+          product_slug: string
+          raw_payload?: Json | null
+          source?: string
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          currency?: string
+          customer_email?: string
+          customer_name?: string | null
+          id?: string
+          license_id?: string | null
+          product_slug?: string
+          raw_payload?: Json | null
+          source?: string
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "license_purchases_license_id_fkey"
+            columns: ["license_id"]
+            isOneToOne: false
+            referencedRelation: "licenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      licenses: {
+        Row: {
+          amount_cents: number | null
+          created_at: string
+          currency: string | null
+          customer_email: string
+          customer_name: string | null
+          id: string
+          install_limit: number | null
+          key_hash: string
+          key_last4: string
+          key_prefix: string
+          notes: string | null
+          product_slug: string
+          purchased_at: string
+          revoked_at: string | null
+          revoked_reason: string | null
+          status: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          support_expires_at: string | null
+          tier_name: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          amount_cents?: number | null
+          created_at?: string
+          currency?: string | null
+          customer_email: string
+          customer_name?: string | null
+          id?: string
+          install_limit?: number | null
+          key_hash: string
+          key_last4: string
+          key_prefix: string
+          notes?: string | null
+          product_slug: string
+          purchased_at?: string
+          revoked_at?: string | null
+          revoked_reason?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          support_expires_at?: string | null
+          tier_name: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount_cents?: number | null
+          created_at?: string
+          currency?: string | null
+          customer_email?: string
+          customer_name?: string | null
+          id?: string
+          install_limit?: number | null
+          key_hash?: string
+          key_last4?: string
+          key_prefix?: string
+          notes?: string | null
+          product_slug?: string
+          purchased_at?: string
+          revoked_at?: string | null
+          revoked_reason?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          support_expires_at?: string | null
+          tier_name?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       list_segments: {
         Row: {
           contact_count: number | null
