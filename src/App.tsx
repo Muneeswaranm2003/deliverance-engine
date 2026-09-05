@@ -37,6 +37,23 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/pricing" element={<LicensePricing />} />
+            <Route
+              path="/license"
+              element={
+                <ProtectedRoute>
+                  <LicensePortal />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/licenses"
+              element={
+                <ProtectedRoute>
+                  <LicenseAdmin />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/auth" element={<Auth />} />
             <Route
               path="/dashboard"
