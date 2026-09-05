@@ -21,6 +21,9 @@ import Settings from "./pages/Settings";
 import SuppressionList from "./pages/SuppressionList";
 import ListSegmentation from "./pages/ListSegmentation";
 import Deliverability from "./pages/Deliverability";
+import LicensePricing from "./pages/LicensePricing";
+import LicensePortal from "./pages/LicensePortal";
+import LicenseAdmin from "./pages/LicenseAdmin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
