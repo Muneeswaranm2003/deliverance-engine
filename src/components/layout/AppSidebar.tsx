@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Mail } from "lucide-react";
+import { useUserRoles } from "@/hooks/useUserRole";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -43,6 +44,8 @@ export const AppSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const { isAdmin } = useUserRoles();
+  const items = navItems.filter((i) => !("adminOnly" in i) || isAdmin);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isActive = (href: string) => location.pathname === href;
@@ -57,7 +60,7 @@ export const AppSidebar = () => {
       </div>
 
       <nav className="space-y-1 flex-1">
-        {navItems.map((item) => (
+        {items.map((item) => (
           <button
             key={item.href}
             onClick={() => {
