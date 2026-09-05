@@ -31,6 +31,8 @@ const navItems = [
   { label: "Automation Logs", href: "/automations/logs", icon: Activity },
   { label: "Templates", href: "/templates", icon: FileText },
   { label: "Deliverability", href: "/deliverability", icon: ShieldCheck },
+  { label: "My Licenses", href: "/license", icon: KeyRound },
+  { label: "License Admin", href: "/admin/licenses", icon: BadgeDollarSign },
   { label: "Integrations", href: "/integrations", icon: Link2 },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
