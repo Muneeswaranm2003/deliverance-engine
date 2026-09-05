@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.process-reengagement]
 verify_jwt = false
+
+[functions.license-api]
+verify_jwt = false
+
+[functions.stripe-license-webhook]
+verify_jwt = false

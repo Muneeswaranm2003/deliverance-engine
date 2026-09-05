@@ -1,0 +1,21 @@
+{
+  "license_key": "LMTA-XXXX-XXXX-XXXX-XXXX",
+  "license_endpoint": "https://YOUR-LICENSE-SERVER/functions/v1/license-api",
+  "domain": "mail.yourcompany.com",
+  "app_version": "1.0.0",
+  "database": {
+    "url": "postgres://user:password@localhost:5432/mailer"
+  },
+  "smtp": {
+    "host": "email-smtp.us-east-1.amazonaws.com",
+    "port": 587,
+    "username": "",
+    "password": "",
+    "secure": "starttls"
+  },
+  "app": {
+    "base_url": "https://mail.yourcompany.com",
+    "from_name": "Your Company",
+    "from_email": "noreply@yourcompany.com"
+  }
+}

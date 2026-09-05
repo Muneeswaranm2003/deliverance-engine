@@ -42,7 +42,7 @@ serve(async (req) => {
     const appVersion = body.app_version ? String(body.app_version).slice(0, 40) : null;
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
 
-    if (!["activate", "validate", "deactivate"].includes(action)) {
+    if (!["activate", "validate", "heartbeat", "deactivate"].includes(action)) {
       return json({ valid: false, error: "Unknown action" }, 400);
     }
     if (!key) return json({ valid: false, error: "license_key is required" }, 400);
@@ -74,7 +74,7 @@ serve(async (req) => {
 
     const { data: activeSlots } = await supabase
       .from("license_activations")
-      .select("id, domain, is_production, last_seen_at")
+      .select("id, domain, is_production, last_seen_at, app_version")
       .eq("license_id", license.id)
       .eq("status", "active");
 
@@ -89,7 +89,7 @@ serve(async (req) => {
       return json({ valid: true, deactivated: true });
     }
 
-    if (action === "validate") {
+    if (action === "validate" || action === "heartbeat") {
       if (!existing) {
         return json({ valid: false, error: "This domain is not activated for the license.", entitlements }, 403);
       }

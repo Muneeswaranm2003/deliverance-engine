@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mailer
+      POSTGRES_PASSWORD: change-me
+      POSTGRES_DB: mailer
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  app:
+    image: node:20-alpine
+    restart: unless-stopped
+    working_dir: /app
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./:/app
+    ports:
+      - "8080:8080"
+    command: sh -c "node license-client.js heartbeat && node server.js"
+
+volumes:
+  db-data:
