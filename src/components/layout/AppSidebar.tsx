@@ -17,6 +17,8 @@ import {
   ListFilter,
   Send,
   ShieldCheck,
+  KeyRound,
+  BadgeDollarSign,
 } from "lucide-react";
 import { useState } from "react";
 import { Mail } from "lucide-react";
