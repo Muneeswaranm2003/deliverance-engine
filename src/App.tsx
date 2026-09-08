@@ -24,6 +24,7 @@ import Deliverability from "./pages/Deliverability";
 import LicensePricing from "./pages/LicensePricing";
 import LicensePortal from "./pages/LicensePortal";
 import LicenseAdmin from "./pages/LicenseAdmin";
+import SelfHostInstall from "./pages/SelfHostInstall";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <LicenseAdmin />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/install"
+              element={
+                <ProtectedRoute>
+                  <SelfHostInstall />
                 </ProtectedRoute>
               }
             />
