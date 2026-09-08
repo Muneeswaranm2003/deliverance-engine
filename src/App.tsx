@@ -55,6 +55,14 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/install"
+              element={
+                <ProtectedRoute>
+                  <SelfHostInstall />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/auth" element={<Auth />} />
             <Route
               path="/dashboard"
