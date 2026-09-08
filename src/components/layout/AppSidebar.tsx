@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   KeyRound,
   BadgeDollarSign,
+  ServerCog,
 } from "lucide-react";
 import { useState } from "react";
 import { Mail } from "lucide-react";
@@ -35,6 +36,7 @@ const navItems = [
   { label: "Templates", href: "/templates", icon: FileText },
   { label: "Deliverability", href: "/deliverability", icon: ShieldCheck },
   { label: "My Licenses", href: "/license", icon: KeyRound },
+  { label: "Self-Host Install", href: "/install", icon: ServerCog },
   { label: "License Admin", href: "/admin/licenses", icon: BadgeDollarSign, adminOnly: true },
   { label: "Integrations", href: "/integrations", icon: Link2 },
   { label: "Settings", href: "/settings", icon: Settings },
