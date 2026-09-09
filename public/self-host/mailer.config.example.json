@@ -17,5 +17,54 @@
     "base_url": "https://mail.yourcompany.com",
     "from_name": "Your Company",
     "from_email": "noreply@yourcompany.com"
+  },
+  "mta": {
+    "port": 8080,
+    "api_key": "change-me-to-a-long-random-string",
+    "concurrency": 5,
+    "max_attempts": 5,
+    "retry_backoff_ms": 30000,
+    "poll_interval_ms": 1000,
+    "webhook_url": "",
+    "dkim": {
+      "selector": "",
+      "domain": "",
+      "private_key": ""
+    },
+    "routes": [
+      {
+        "name": "ses",
+        "enabled": true,
+        "weight": 3,
+        "max_per_hour": 0,
+        "from_email": "noreply@yourcompany.com",
+        "from_name": "Your Company",
+        "transport": {
+          "host": "email-smtp.us-east-1.amazonaws.com",
+          "port": 587,
+          "username": "",
+          "password": "",
+          "secure": "starttls"
+        }
+      },
+      {
+        "name": "backup-relay",
+        "enabled": false,
+        "weight": 1,
+        "max_per_hour": 500,
+        "from_email": "noreply@yourcompany.com",
+        "transport": {
+          "host": "smtp.elasticemail.com",
+          "port": 2525,
+          "username": "",
+          "password": "",
+          "secure": "starttls"
+        }
+      }
+    ],
+    "rules": [
+      { "match": { "recipient_domain": "gmail.com" }, "route": "ses" },
+      { "match": { "tag": "transactional" }, "route": "ses" }
+    ]
   }
 }
