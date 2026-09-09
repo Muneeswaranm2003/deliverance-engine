@@ -102,6 +102,33 @@ const SelfHostInstall = () => {
             from_name: "Your Company",
             from_email: `noreply@${domain || "yourcompany.com"}`,
           },
+          mta: {
+            port: 8080,
+            api_key: "change-me-to-a-long-random-string",
+            concurrency: 5,
+            max_attempts: 5,
+            retry_backoff_ms: 30000,
+            webhook_url: "",
+            dkim: { selector: "", domain: domain || "", private_key: "" },
+            routes: [
+              {
+                name: "primary",
+                enabled: true,
+                weight: 1,
+                max_per_hour: 0,
+                from_email: `noreply@${domain || "yourcompany.com"}`,
+                from_name: "Your Company",
+                transport: {
+                  host: "email-smtp.us-east-1.amazonaws.com",
+                  port: 587,
+                  username: "",
+                  password: "",
+                  secure: "starttls",
+                },
+              },
+            ],
+            rules: [],
+          },
         },
         null,
         2,
@@ -114,10 +141,16 @@ const SelfHostInstall = () => {
     try {
       const files = [
         "license-client.js",
+        "server.js",
         "install.sh",
         "docker-compose.yml",
         "README.md",
         "mailer.config.example.json",
+        "mta/index.js",
+        "mta/queue.js",
+        "mta/router.js",
+        "mta/mime.js",
+        "mta/smtp-client.js",
       ];
       const zip = new JSZip();
       const folder = zip.folder("mailer-self-host")!;

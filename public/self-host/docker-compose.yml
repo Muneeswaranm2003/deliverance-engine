@@ -13,7 +13,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
 
-  app:
+  mta:
     image: node:20-alpine
     restart: unless-stopped
     working_dir: /app
@@ -24,7 +24,12 @@ services:
       - ./:/app
     ports:
       - "8080:8080"
-    command: sh -c "node license-client.js heartbeat && node server.js"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    command: sh -c "node license-client.js heartbeat || true; node server.js"
 
 volumes:
   db-data:
