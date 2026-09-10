@@ -17,6 +17,8 @@ const fs = require("fs");
 const http = require("http");
 const path = require("path");
 const { Mta } = require("./mta");
+const { Store } = require("./panel/store");
+const { handlePanelApi } = require("./panel/api");
 
 const CONFIG_PATH = process.env.MAILER_CONFIG || path.join(__dirname, "mailer.config.json");
 const STATE_PATH = path.join(__dirname, ".license-state.json");
@@ -27,6 +29,8 @@ const apiKey = config.mta?.api_key || process.env.MTA_API_KEY || "";
 const port = Number(config.mta?.port || process.env.PORT || 8080);
 
 const mta = new Mta(config);
+const store = new Store(path.join(mta.dataDir, "panel.json"));
+const PANEL_DIR = path.join(__dirname, "panel");
 
 /** Delivery stops if the licence has been invalid for longer than the grace window. */
 function licenseState() {
@@ -92,9 +96,18 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+  // Control panel (static, unauthenticated shell — the API behind it needs the key)
+  if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/panel" || url.pathname === "/panel/")) {
+    const html = fs.readFileSync(path.join(PANEL_DIR, "index.html"));
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Content-Length": html.length });
+    return res.end(html);
+  }
+
   if (!authorized(req)) return json(res, 401, { error: "Unauthorized" });
 
   try {
+    if (await handlePanelApi(req, res, { url, json, readBody, store, mta, config })) return;
+
     if (route === "POST /api/send" || route === "POST /api/send/bulk") {
       if (!licenseState().valid) {
         return json(res, 402, { error: "Licence check has not succeeded within the 14-day grace period." });

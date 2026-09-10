@@ -151,6 +151,9 @@ const SelfHostInstall = () => {
         "mta/router.js",
         "mta/mime.js",
         "mta/smtp-client.js",
+        "panel/store.js",
+        "panel/api.js",
+        "panel/index.html",
       ];
       const zip = new JSZip();
       const folder = zip.folder("mailer-self-host")!;
