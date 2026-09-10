@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mail Control Panel</title>
+    <style>
+      :root {
+        --bg: #0b1220;
+        --panel: #111a2e;
+        --panel2: #16213a;
+        --border: #22304d;
+        --text: #e6edf7;
+        --muted: #8ea1c0;
+        --primary: #22d3ee;
+        --good: #34d399;
+        --bad: #f87171;
+        --warn: #fbbf24;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+      a { color: var(--primary); }
+      .layout { display: flex; min-height: 100vh; }
+      nav { width: 210px; background: var(--panel); border-right: 1px solid var(--border); padding: 18px 12px; }
+      nav h1 { font-size: 15px; margin: 0 0 18px 8px; letter-spacing: .3px; }
+      nav button { display: block; width: 100%; text-align: left; background: none; border: 0; color: var(--muted); padding: 9px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+      nav button:hover { background: var(--panel2); color: var(--text); }
+      nav button.active { background: rgba(34,211,238,.12); color: var(--primary); }
+      main { flex: 1; padding: 24px 28px 60px; max-width: 1100px; }
+      h2 { margin: 0 0 4px; font-size: 20px; }
+      .sub { color: var(--muted); margin: 0 0 20px; }
+      .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+      .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+      .stat b { display: block; font-size: 24px; }
+      .stat span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: top; }
+      th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
+      input, textarea, select { width: 100%; background: var(--panel2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 9px 10px; font: inherit; }
+      textarea { min-height: 110px; font-family: ui-monospace, monospace; font-size: 12px; }
+      label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 4px; }
+      .row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 12px; }
+      button.btn { background: var(--primary); color: #05202b; border: 0; padding: 9px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+      button.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+      button.link { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 0 6px; }
+      button.link:hover { color: var(--bad); }
+      .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; border: 1px solid var(--border); color: var(--muted); }
+      .ok { color: var(--good); border-color: rgba(52,211,153,.4); }
+      .no { color: var(--bad); border-color: rgba(248,113,113,.4); }
+      .pend { color: var(--warn); border-color: rgba(251,191,36,.4); }
+      code { background: var(--panel2); padding: 2px 6px; border-radius: 6px; font-size: 12px; word-break: break-all; }
+      #toast { position: fixed; right: 20px; bottom: 20px; background: var(--panel2); border: 1px solid var(--border); padding: 11px 14px; border-radius: 10px; display: none; }
+      .login { max-width: 340px; margin: 14vh auto; }
+    </style>
+  </head>
+  <body>
+    <div id="login" class="login card" style="display:none">
+      <h2>Control panel</h2>
+      <p class="sub">Enter the API key from your <code>mailer.config.json</code>.</p>
+      <input id="key" type="password" placeholder="mta.api_key" />
+      <p></p>
+      <button class="btn" onclick="saveKey()">Sign in</button>
+    </div>
+
+    <div class="layout" id="app" style="display:none">
+      <nav>
+        <h1>✉︎ Mail Server</h1>
+        <button data-tab="overview" class="active">Overview</button>
+        <button data-tab="domains">Domains</button>
+        <button data-tab="senders">Senders</button>
+        <button data-tab="lists">Lists</button>
+        <button data-tab="campaigns">Campaigns</button>
+        <button data-tab="queue">Queue</button>
+        <button class="link" style="margin-top:18px" onclick="logout()">Sign out</button>
+      </nav>
+      <main id="view"></main>
+    </div>
+    <div id="toast"></div>
+
+    <script>
+      const $ = (s) => document.querySelector(s);
+      let key = localStorage.getItem("mta_api_key") || "";
+      let tab = "overview";
+      let state = {};
+
+      function toast(msg, bad) {
+        const t = $("#toast");
+        t.textContent = msg;
+        t.style.borderColor = bad ? "var(--bad)" : "var(--border)";
+        t.style.display = "block";
+        setTimeout(() => (t.style.display = "none"), 2600);
+      }
+      const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+      async function api(path, method = "GET", body) {
+        const res = await fetch("/api/panel" + path, {
+          method,
+          headers: { "Content-Type": "application/json", ...(key ? { Authorization: "Bearer " + key } : {}) },
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        if (res.status === 401) { logout(); throw new Error("Unauthorized"); }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Request failed");
+        return data;
+      }
+
+      function saveKey() {
+        key = $("#key").value.trim();
+        localStorage.setItem("mta_api_key", key);
+        boot();
+      }
+      function logout() {
+        localStorage.removeItem("mta_api_key");
+        key = "";
+        $("#app").style.display = "none";
+        $("#login").style.display = "block";
+      }
+
+      document.querySelectorAll("nav button[data-tab]").forEach((b) =>
+        b.addEventListener("click", () => {
+          tab = b.dataset.tab;
+          document.querySelectorAll("nav button[data-tab]").forEach((x) => x.classList.toggle("active", x === b));
+          render();
+        }),
+      );
+
+      async function load() {
+        const [overview, domains, senders, lists, campaigns] = await Promise.all([
+          api("/overview"), api("/domains"), api("/senders"), api("/lists"), api("/campaigns"),
+        ]);
+        state = { overview, domains: domains.domains, senders: senders.senders, lists: lists.lists, campaigns: campaigns.campaigns };
+      }
+
+      async function render() {
+        try { await load(); } catch (e) { return toast(e.message, true); }
+        $("#view").innerHTML = views[tab]();
+      }
+
+      const views = {
+        overview: () => {
+          const o = state.overview;
+          const q = o.mta.queue || {};
+          return `
+          <h2>Overview</h2><p class="sub">Live status of this mail server.</p>
+          <div class="grid">
+            ${stat("Domains", o.domains)}${stat("Senders", o.senders)}${stat("Contacts", o.contacts)}
+            ${stat("Campaigns", o.campaigns)}${stat("Queued", q.pending || 0)}${stat("Delivered", q.sent || 0)}${stat("Failed", q.failed || 0)}
+          </div>
+          <div class="card"><h3>Relays</h3><table><tr><th>Route</th><th>Host</th><th>This hour</th><th>State</th></tr>
+            ${(o.mta.routes || []).map((r) => `<tr><td>${esc(r.name)}</td><td>${esc(r.host || "—")}</td><td>${r.sent_this_hour}${r.max_per_hour ? " / " + r.max_per_hour : ""}</td>
+            <td><span class="pill ${r.cooling_down ? "pend" : r.enabled ? "ok" : "no"}">${r.cooling_down ? "cooling down" : r.enabled ? "active" : "disabled"}</span></td></tr>`).join("") || `<tr><td colspan="4">No relays configured.</td></tr>`}
+          </table></div>`;
+        },
+
+        domains: () => `
+          <h2>Domains</h2><p class="sub">Add a sending domain, then publish the DNS records and check them.</p>
+          <div class="card"><div class="row">
+            <div><label>Domain</label><input id="d_name" placeholder="mail.yourcompany.com" /></div>
+            <div><label>DKIM selector</label><input id="d_sel" value="mail" /></div>
+            <div><label>DMARC policy</label><select id="d_pol"><option>none</option><option>quarantine</option><option>reject</option></select></div>
+          </div><button class="btn" onclick="addDomain()">Add domain</button></div>
+          <div class="card"><table><tr><th>Domain</th><th>SPF</th><th>DKIM</th><th>DMARC</th><th>Checked</th><th></th></tr>
+          ${state.domains.map((d) => {
+            const c = d.checks || {};
+            return `<tr><td><b>${esc(d.name)}</b><div class="pill ${d.verified ? "ok" : "pend"}">${d.verified ? "verified" : "pending"}</div></td>
+            ${[c.spf, c.dkim, c.dmarc].map((v) => `<td><span class="pill ${v ? "ok" : "no"}">${v ? "found" : "missing"}</span></td>`).join("")}
+            <td>${d.last_checked_at ? new Date(d.last_checked_at).toLocaleString() : "—"}</td>
+            <td style="white-space:nowrap"><button class="ghost btn" onclick="checkDomain('${d.id}')">Check DNS</button>
+            <button class="link" onclick="del('domains','${d.id}')">Delete</button></td></tr>
+            <tr><td colspan="6" id="dns_${d.id}"></td></tr>`;
+          }).join("") || `<tr><td>No domains yet.</td></tr>`}
+          </table></div>`,
+
+        senders: () => `
+          <h2>Senders</h2><p class="sub">From names and addresses your campaigns can send with.</p>
+          <div class="card"><div class="row">
+            <div><label>From name</label><input id="s_name" placeholder="Your Company" /></div>
+            <div><label>From email</label><input id="s_email" placeholder="noreply@yourcompany.com" /></div>
+            <div><label>Domain</label><select id="s_dom"><option value="">—</option>${state.domains.map((d) => `<option value="${d.id}">${esc(d.name)}</option>`).join("")}</select></div>
+            <div><label>Relay route (optional)</label><input id="s_route" placeholder="primary" /></div>
+          </div><button class="btn" onclick="addSender()">Add sender</button></div>
+          <div class="card"><table><tr><th>From</th><th>Domain</th><th>Route</th><th>State</th><th></th></tr>
+          ${state.senders.map((s) => `<tr><td>${esc(s.from_name)} &lt;${esc(s.from_email)}&gt;</td>
+            <td>${esc(state.domains.find((d) => d.id === s.domain_id)?.name || "—")}</td><td>${esc(s.route || "auto")}</td>
+            <td><span class="pill ${s.enabled ? "ok" : "no"}">${s.enabled ? "enabled" : "disabled"}</span></td>
+            <td style="white-space:nowrap"><button class="ghost btn" onclick="toggleSender('${s.id}',${!s.enabled})">${s.enabled ? "Disable" : "Enable"}</button>
+            <button class="link" onclick="del('senders','${s.id}')">Delete</button></td></tr>`).join("") || `<tr><td>No senders yet.</td></tr>`}
+          </table></div>`,
+
+        lists: () => `
+          <h2>Lists</h2><p class="sub">Paste addresses — one per line, or separated by commas.</p>
+          <div class="card"><div class="row">
+            <div><label>List name</label><input id="l_name" placeholder="Newsletter" /></div>
+            <div><label>Description</label><input id="l_desc" placeholder="Optional" /></div>
+          </div><label>Contacts</label><textarea id="l_contacts" placeholder="jane@example.com&#10;john@example.com"></textarea>
+          <p></p><button class="btn" onclick="addList()">Create list</button></div>
+          <div class="card"><table><tr><th>List</th><th>Contacts</th><th>Created</th><th></th></tr>
+          ${state.lists.map((l) => `<tr><td><b>${esc(l.name)}</b><br><span class="pill">${esc(l.description || "")}</span></td>
+            <td>${l.contacts.length}</td><td>${new Date(l.created_at).toLocaleDateString()}</td>
+            <td><button class="link" onclick="del('lists','${l.id}')">Delete</button></td></tr>`).join("") || `<tr><td>No lists yet.</td></tr>`}
+          </table></div>`,
+
+        campaigns: () => `
+          <h2>Campaigns</h2><p class="sub">Compose, then send to a list through the queue. Use {{first_name}} style tags.</p>
+          <div class="card"><div class="row">
+            <div><label>Name</label><input id="c_name" placeholder="September update" /></div>
+            <div><label>Sender</label><select id="c_sender">${state.senders.map((s) => `<option value="${s.id}">${esc(s.from_email)}</option>`).join("") || `<option value="">Add a sender first</option>`}</select></div>
+            <div><label>List</label><select id="c_list">${state.lists.map((l) => `<option value="${l.id}">${esc(l.name)} (${l.contacts.length})</option>`).join("") || `<option value="">Create a list first</option>`}</select></div>
+          </div>
+          <label>Subject</label><input id="c_subject" placeholder="Hello {{first_name}}" /><p></p>
+          <label>HTML content</label><textarea id="c_html" placeholder="&lt;p&gt;Hi {{first_name}},&lt;/p&gt;"></textarea>
+          <p></p><button class="btn" onclick="addCampaign()">Save campaign</button></div>
+          <div class="card"><table><tr><th>Campaign</th><th>Sender</th><th>Progress</th><th>Status</th><th></th></tr>
+          ${state.campaigns.map((c) => {
+            const st = c.stats || {};
+            return `<tr><td><b>${esc(c.name)}</b><br><span class="pill">${esc(c.subject)}</span></td>
+            <td>${esc(state.senders.find((s) => s.id === c.sender_id)?.from_email || "—")}</td>
+            <td>${st.sent || 0} sent · ${st.pending || 0} queued · ${st.failed || 0} failed</td>
+            <td><span class="pill ${c.status === "sending" ? "pend" : "ok"}">${esc(c.status)}</span></td>
+            <td style="white-space:nowrap"><button class="ghost btn" onclick="sendCampaign('${c.id}')">Send</button>
+            <button class="link" onclick="del('campaigns','${c.id}')">Delete</button></td></tr>`;
+          }).join("") || `<tr><td>No campaigns yet.</td></tr>`}
+          </table></div>`,
+
+        queue: () => `
+          <h2>Queue</h2><p class="sub">Most recent messages handled by the mail engine.</p>
+          <div class="card" id="queue_card">Loading…</div>`,
+      };
+
+      const stat = (label, value) => `<div class="card stat"><span>${label}</span><b>${value}</b></div>`;
+
+      async function guard(fn) { try { await fn(); await render(); } catch (e) { toast(e.message, true); } }
+
+      const addDomain = () => guard(async () => {
+        await api("/domains", "POST", { name: $("#d_name").value.trim(), dkim_selector: $("#d_sel").value.trim(), dmarc_policy: $("#d_pol").value });
+        toast("Domain added");
+      });
+      const addSender = () => guard(async () => {
+        await api("/senders", "POST", { from_name: $("#s_name").value.trim(), from_email: $("#s_email").value.trim(), domain_id: $("#s_dom").value || null, route: $("#s_route").value.trim() });
+        toast("Sender added");
+      });
+      const addList = () => guard(async () => {
+        await api("/lists", "POST", { name: $("#l_name").value.trim(), description: $("#l_desc").value.trim(), contacts: $("#l_contacts").value });
+        toast("List created");
+      });
+      const addCampaign = () => guard(async () => {
+        await api("/campaigns", "POST", { name: $("#c_name").value.trim(), subject: $("#c_subject").value.trim(), html: $("#c_html").value, sender_id: $("#c_sender").value || null, list_id: $("#c_list").value || null });
+        toast("Campaign saved");
+      });
+      const toggleSender = (id, enabled) => guard(async () => { await api("/senders/" + id, "PATCH", { enabled }); });
+      const del = (col, id) => guard(async () => { if (confirm("Delete this item?")) await api(`/${col}/${id}`, "DELETE"); });
+      const sendCampaign = (id) => guard(async () => {
+        const r = await api(`/campaigns/${id}/send`, "POST");
+        toast(`Queued ${r.queued} message(s)${r.skipped ? `, skipped ${r.skipped}` : ""}`);
+      });
+
+      async function checkDomain(id) {
+        try {
+          const r = await api("/dns/" + id);
+          const rows = r.records.map((x) => `<tr><td>${x.purpose}</td><td>${x.type}</td><td><code>${esc(x.host)}</code></td><td><code>${esc(x.value)}</code></td></tr>`).join("");
+          await render();
+          const cell = document.getElementById("dns_" + id);
+          if (cell) cell.innerHTML = `<table><tr><th></th><th>Type</th><th>Host</th><th>Value</th></tr>${rows}</table>`;
+          toast(r.verified ? "All records found" : "Some records are still missing");
+        } catch (e) { toast(e.message, true); }
+      }
+
+      async function refreshQueue() {
+        if (tab !== "queue") return;
+        try {
+          const res = await fetch("/api/messages?status=pending&limit=25", { headers: { Authorization: "Bearer " + key } });
+          const pending = (await res.json()).messages || [];
+          const res2 = await fetch("/api/messages?status=sent&limit=25", { headers: { Authorization: "Bearer " + key } });
+          const sent = (await res2.json()).messages || [];
+          const rows = [...pending, ...sent].map((m) => `<tr><td>${esc(m.to)}</td><td>${esc(m.subject || "")}</td><td><span class="pill ${m.status === "sent" ? "ok" : m.status === "failed" ? "no" : "pend"}">${esc(m.status)}</span></td>
+            <td>${esc(m.route || "—")}</td><td>${esc(m.last_error || "")}</td></tr>`).join("");
+          const card = document.getElementById("queue_card");
+          if (card) card.innerHTML = `<table><tr><th>To</th><th>Subject</th><th>Status</th><th>Route</th><th>Error</th></tr>${rows || "<tr><td>Queue is empty.</td></tr>"}</table>`;
+        } catch { /* ignore */ }
+      }
+
+      async function boot() {
+        if (!key) { $("#login").style.display = "block"; return; }
+        try { await api("/overview"); } catch { logout(); return; }
+        $("#login").style.display = "none";
+        $("#app").style.display = "flex";
+        await render();
+      }
+      setInterval(() => { if (tab === "overview") render().catch(() => {}); refreshQueue(); }, 8000);
+      setInterval(refreshQueue, 3000);
+      boot();
+    </script>
+  </body>
+</html>
