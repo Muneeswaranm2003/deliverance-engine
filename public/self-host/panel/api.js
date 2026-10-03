@@ -153,6 +153,42 @@ async function handlePanelApi(req, res, ctx) {
     return true;
   }
 
+  // GET /api/panel/deliveries?status=queued|sent|bounced|failed&q=&limit=&offset=
+  if (head === "deliveries" && req.method === "GET") {
+    const now = Date.now();
+    const rows = [];
+    for (const state of ["pending", "sent", "failed"]) {
+      for (const j of mta.queue.all(state)) {
+        const status = state === "pending" ? "queued" : state === "sent" ? "sent" : j.bounced ? "bounced" : "failed";
+        rows.push({
+          id: j.id,
+          status,
+          to: j.message?.to,
+          from: j.message?.from || "",
+          subject: j.message?.subject || "",
+          tag: j.message?.tag || "",
+          route: j.route,
+          attempts: j.attempts,
+          error: j.last_error,
+          retry_at: state === "pending" && new Date(j.next_attempt_at).getTime() > now ? j.next_attempt_at : null,
+          at: j.sent_at || j.failed_at || j.created_at,
+        });
+      }
+    }
+    const counts = { queued: 0, sent: 0, bounced: 0, failed: 0 };
+    for (const r of rows) counts[r.status] += 1;
+    const status = url.searchParams.get("status");
+    const q = (url.searchParams.get("q") || "").toLowerCase().trim();
+    const filtered = rows
+      .filter((r) => !status || status === "all" || r.status === status)
+      .filter((r) => !q || [r.to, r.from, r.subject, r.tag, r.route, r.error].some((v) => String(v || "").toLowerCase().includes(q)))
+      .sort((a, b) => String(b.at).localeCompare(String(a.at)));
+    const limit = Math.min(200, Number(url.searchParams.get("limit")) || 50);
+    const offset = Math.max(0, Number(url.searchParams.get("offset")) || 0);
+    json(res, 200, { counts, total: filtered.length, rows: filtered.slice(offset, offset + limit) });
+    return true;
+  }
+
   if (head === "dns" && req.method === "GET" && id) {
     const domain = store.find("domains", id);
     if (!domain) return json(res, 404, { error: "Domain not found" }), true;

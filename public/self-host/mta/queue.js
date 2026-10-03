@@ -75,6 +75,7 @@ class Queue {
     job.locked_until = null;
     if (permanent || job.attempts >= this.maxAttempts) {
       job.status = "failed";
+      job.bounced = Boolean(permanent);
       job.failed_at = new Date().toISOString();
       fs.writeFileSync(this._file("failed", job.id), JSON.stringify(job));
       this._remove("pending", job.id);
@@ -108,6 +109,20 @@ class Queue {
   stats() {
     const out = {};
     for (const s of STATES) out[s] = fs.readdirSync(path.join(this.dir, s)).length;
+    return out;
+  }
+
+  /** Every job in a state, as full records (used by the delivery dashboard). */
+  all(state) {
+    const dir = path.join(this.dir, state);
+    const out = [];
+    for (const f of fs.readdirSync(dir)) {
+      try {
+        out.push(JSON.parse(fs.readFileSync(path.join(dir, f), "utf8")));
+      } catch {
+        /* skip partial writes */
+      }
+    }
     return out;
   }
 
