@@ -70,6 +70,7 @@
         <button data-tab="senders">Senders</button>
         <button data-tab="lists">Lists</button>
         <button data-tab="campaigns">Campaigns</button>
+        <button data-tab="deliveries">Deliveries</button>
         <button data-tab="queue">Queue</button>
         <button class="link" style="margin-top:18px" onclick="logout()">Sign out</button>
       </nav>
@@ -134,6 +135,7 @@
       async function render() {
         try { await load(); } catch (e) { return toast(e.message, true); }
         $("#view").innerHTML = views[tab]();
+        if (tab === "deliveries") fetchDeliveries();
       }
 
       const views = {
@@ -222,6 +224,15 @@
           }).join("") || `<tr><td>No campaigns yet.</td></tr>`}
           </table></div>`,
 
+        deliveries: () => `
+          <h2>Deliveries</h2><p class="sub">Every message the server has handled. Search by address, subject, tag, relay or error.</p>
+          <div class="grid" id="dl_counts"></div>
+          <div class="card"><div class="row">
+            <div><label>Search</label><input id="dl_q" placeholder="jane@example.com, subject, error…" value="${esc(dl.q)}" oninput="dl.q=this.value;dl.offset=0;loadDeliveries()" /></div>
+            <div><label>Status</label><select id="dl_s" onchange="dl.status=this.value;dl.offset=0;loadDeliveries()">
+              ${["all","queued","sent","bounced","failed"].map((s) => `<option ${dl.status===s?"selected":""}>${s}</option>`).join("")}</select></div>
+          </div><div id="dl_table">Loading…</div></div>`,
+
         queue: () => `
           <h2>Queue</h2><p class="sub">Most recent messages handled by the mail engine.</p>
           <div class="card" id="queue_card">Loading…</div>`,
@@ -265,6 +276,33 @@
         } catch (e) { toast(e.message, true); }
       }
 
+      const dl = { q: "", status: "all", offset: 0 };
+      const pillFor = { sent: "ok", queued: "pend", bounced: "no", failed: "no" };
+      let dlTimer;
+      function loadDeliveries() { clearTimeout(dlTimer); dlTimer = setTimeout(fetchDeliveries, 200); }
+      async function fetchDeliveries() {
+        if (tab !== "deliveries") return;
+        try {
+          const p = new URLSearchParams({ status: dl.status, q: dl.q, offset: dl.offset, limit: 50 });
+          const r = await api("/deliveries?" + p);
+          const c = document.getElementById("dl_counts");
+          if (c) c.innerHTML = ["queued","sent","bounced","failed"].map((s) =>
+            `<div class="card stat" style="cursor:pointer" onclick="dl.status='${s}';dl.offset=0;render()"><span>${s}</span><b>${r.counts[s]}</b></div>`).join("");
+          const t = document.getElementById("dl_table");
+          if (!t) return;
+          const rows = r.rows.map((m) => `<tr><td>${esc(m.to)}</td><td>${esc(m.subject)}<br><span class="pill">${esc(m.from)}</span></td>
+            <td><span class="pill ${pillFor[m.status]}">${m.status}</span>${m.retry_at ? `<br><span class="pill">retry ${new Date(m.retry_at).toLocaleTimeString()}</span>` : ""}</td>
+            <td>${esc(m.route || "—")}</td><td>${m.attempts}</td><td>${m.at ? new Date(m.at).toLocaleString() : "—"}</td>
+            <td style="color:var(--bad);max-width:260px">${esc(m.error || "")}</td></tr>`).join("");
+          const end = Math.min(dl.offset + 50, r.total);
+          t.innerHTML = `<table><tr><th>To</th><th>Subject / From</th><th>Status</th><th>Relay</th><th>Tries</th><th>Time</th><th>Error</th></tr>
+            ${rows || '<tr><td colspan="7">No messages match.</td></tr>'}</table>
+            <p class="sub" style="margin-top:12px">${r.total ? `${dl.offset + 1}–${end} of ${r.total}` : ""}
+            ${dl.offset > 0 ? '<button class="ghost btn" onclick="dl.offset-=50;fetchDeliveries()">Previous</button>' : ""}
+            ${end < r.total ? '<button class="ghost btn" onclick="dl.offset+=50;fetchDeliveries()">Next</button>' : ""}</p>`;
+        } catch (e) { toast(e.message, true); }
+      }
+
       async function refreshQueue() {
         if (tab !== "queue") return;
         try {
@@ -288,6 +326,7 @@
       }
       setInterval(() => { if (tab === "overview") render().catch(() => {}); refreshQueue(); }, 8000);
       setInterval(refreshQueue, 3000);
+      setInterval(() => { if (tab === "deliveries" && document.activeElement?.id !== "dl_q") fetchDeliveries(); }, 5000);
       boot();
     </script>
   </body>
